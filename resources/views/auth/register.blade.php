@@ -41,25 +41,26 @@
                         <p class="text-body-sm font-body-sm text-secondary">Vui lòng điền thông tin bên dưới để bắt đầu
                             mua sắm.</p>
                     </div>
-                    <form class="space-y-md" id="registerForm">
+                    <form class="space-y-md" id="registerForm" action="{{ route('register.submit') }}" method="POST">
+                        @csrf
                         <div class="flex flex-col gap-xs">
                             <label class="text-label-sm font-label-sm text-on-surface" for="fullname">Họ và tên</label>
                             <input
                                 class="w-full px-sm py-xs bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-body-md font-body-md"
-                                id="fullname" placeholder="Nguyễn Văn A" type="text" />
+                                id="fullname" placeholder="Nguyễn Văn A" type="text" name="name" />
                         </div>
                         <div class="flex flex-col gap-xs">
                             <label class="text-label-sm font-label-sm text-on-surface" for="email">Email</label>
                             <input
                                 class="w-full px-sm py-xs bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-body-md font-body-md"
-                                id="email" placeholder="example@gmail.com" type="email" />
+                                id="email" placeholder="example@gmail.com" type="email" name="email" />
                         </div>
                         <div class="flex flex-col gap-xs">
                             <label class="text-label-sm font-label-sm text-on-surface" for="phone">Số điện
                                 thoại</label>
                             <input
                                 class="w-full px-sm py-xs bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-body-md font-body-md"
-                                id="phone" placeholder="0123 456 789" type="tel" />
+                                id="phone" placeholder="0123 456 789" type="tel" name="phone" />
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-md">
                             <div class="flex flex-col gap-xs">
@@ -67,14 +68,15 @@
                                     khẩu</label>
                                 <input
                                     class="w-full px-sm py-xs bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-body-md font-body-md"
-                                    id="password" placeholder="••••••••" type="password" />
+                                    id="password" placeholder="••••••••" type="password" name="password" />
                             </div>
                             <div class="flex flex-col gap-xs">
                                 <label class="text-label-sm font-label-sm text-on-surface" for="confirm_password">Xác
                                     nhận mật khẩu</label>
                                 <input
                                     class="w-full px-sm py-xs bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-body-md font-body-md"
-                                    id="confirm_password" placeholder="••••••••" type="password" />
+                                    id="confirm_password" placeholder="••••••••" type="password"
+                                    name="password_confirmation" />
                             </div>
                         </div>
                         <div class="flex items-start gap-xs py-xs">
@@ -86,6 +88,11 @@
                                     mật</a>.
                             </label>
                         </div>
+                        @error('register')
+                            <div class="text-red-500 text-sm mb-4">
+                                {{ $message }}
+                            </div>
+                        @enderror
                         <button
                             class="w-full bg-primary text-on-primary font-label-md text-label-md py-sm rounded-lg hover:bg-primary-container hover:shadow-md transition-all duration-300 transform active:scale-95 flex justify-center items-center gap-xs"
                             type="submit">
@@ -98,11 +105,6 @@
                             <a class="text-primary font-bold hover:underline" href="{{ route('login') }}">Đăng nhập
                                 ngay</a>
                         </p>
-                        {{-- <a class="text-primary font-label-md text-label-md border border-primary px-lg py-xs rounded hover:bg-primary-fixed transition-colors"
-                            href="#">
-                            Quay lại Đăng nhập
-                        </a> --}}
-
                     </div>
                 </div>
             </div>

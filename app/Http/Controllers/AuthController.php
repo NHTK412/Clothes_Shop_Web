@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterRequest;
 use App\Http\Services\AuthService;
 
 class AuthController extends Controller
@@ -43,6 +44,25 @@ class AuthController extends Controller
     public function registerFormUI()
     {
         return view('auth.register');
+    }
+
+    public function register(RegisterRequest $request)
+    {
+        $newUser = $this->authService->register(
+            $request->input('name'),
+            $request->input('email'),
+            $request->input('phone'),
+            $request->input('password'),
+        );
+
+        if (! $newUser) {
+            return back()->withErrors(
+                [
+                    'register' => 'Đăng ký thất bại, vui lòng thử lại.',
+                ]);
+        }
+
+        return redirect()->route('login');
     }
 
     public function index()

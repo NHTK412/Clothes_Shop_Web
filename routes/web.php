@@ -11,4 +11,6 @@ Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/register', [AuthController::class, 'registerFormUI'])->name('register');
 
+Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
+
 Route::get('/', [AuthController::class, 'index'])->name('home');
