@@ -64,7 +64,7 @@
                 <div class="flex flex-col gap-xs">
                     <div class="flex justify-between items-center">
                         <label class="font-label-sm text-label-sm text-on-surface" for="password">Mật khẩu</label>
-                        <a class="font-label-sm text-label-sm text-primary hover:underline" href="#">Quên mật
+                        <a class="font-label-sm text-label-sm text-primary hover:underline" href="{{ route('password.request') }}">Quên mật
                             khẩu?</a>
                     </div>
                     <div class="relative">

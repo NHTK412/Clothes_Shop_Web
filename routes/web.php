@@ -13,4 +13,6 @@ Route::get('/register', [AuthController::class, 'registerFormUI'])->name('regist
 
 Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
 
+Route::get('/password-reset', [AuthController::class, 'resetPasswordForm'])->name('password.request');
+
 Route::get('/', [AuthController::class, 'index'])->name('home');

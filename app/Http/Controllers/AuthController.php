@@ -73,4 +73,9 @@ class AuthController extends Controller
 
         return 'Bạn đã đăng nhập!';
     }
+
+    public function resetPasswordForm()
+    {
+        return view('auth.reset-password');
+    }
 }
