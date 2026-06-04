@@ -13,9 +13,8 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
         rel="stylesheet" />
-    <link rel="stylesheet" href="{{ asset('css/auth/login.css') }}" />
     <link rel="shortcut icon" href="{{ asset('images/icon_logo.png') }}" type="image/x-icon">
-    <script src="{{ asset('js/auth/login.js') }}"></script>
+    @vite(['resources/css/app.css', 'resources/js/auth/login.js'])
     <title>Đăng nhập</title>
 </head>
 
@@ -25,7 +24,7 @@
         <div
             class="w-full max-w-[480px] bg-surface-container-lowest login-card rounded-xl p-lg border border-outline-variant">
             <div class="text-center mb-lg">
-                <h1 class="font-headline-md text-headline-md text-on-background mb-xs">Chào mừng trở lại</h1>
+                <h1 class="font-headline-md text-headline-md text-on-background mb-xs">Chào Mừng Trở Lại</h1>
                 <p class="font-body-sm text-body-sm text-secondary">Vui lòng đăng nhập để tiếp tục mua sắm</p>
             </div>
             <div class="grid grid-cols-1 gap-sm mb-lg">
@@ -54,13 +53,13 @@
                 <span class="flex-shrink mx-sm font-label-sm text-label-sm text-secondary">Hoặc bằng Email</span>
                 <div class="flex-grow border-t border-outline-variant"></div>
             </div>
-            <form action="#" class="space-y-md">
+            <form action="{{ route('login.authenticate') }}" class="space-y-md" method="POST">
                 @csrf
                 <div class="flex flex-col gap-xs">
                     <label class="font-label-sm text-label-sm text-on-surface" for="email">Email của bạn</label>
                     <input
                         class="w-full px-sm py-md bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all duration-200 outline-none text-body-md"
-                        id="email" placeholder="example@luxe.com" required="" type="email" />
+                        id="email" placeholder="example@luxe.com" required="" type="email" name="email" />
                 </div>
                 <div class="flex flex-col gap-xs">
                     <div class="flex justify-between items-center">
@@ -71,13 +70,18 @@
                     <div class="relative">
                         <input
                             class="w-full px-sm py-md bg-surface-container-lowest border border-outline-variant rounded-lg focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all duration-200 outline-none text-body-md"
-                            id="password" placeholder="••••••••" required="" type="password" />
+                            id="password" placeholder="••••••••" required="" type="password" name="password" />
                         <button class="absolute right-sm top-1/2 -translate-y-1/2 text-secondary hover:text-primary"
-                            type="button">
-                            <span class="material-symbols-outlined text-[20px]">visibility</span>
+                            type="button" id="toggle-password">
+                            <span class="material-symbols-outlined text-[20px]" id="password-icon">visibility</span>
                         </button>
                     </div>
                 </div>
+                @error('login')
+                    <div class="text-red-500 text-sm mb-4">
+                        {{ $message }}
+                    </div>
+                @enderror
                 <button
                     class="w-full py-md bg-primary text-on-primary font-label-md text-label-md rounded-lg hover:bg-primary-container transition-all hover:cursor-pointer duration-200 active:scale-[0.98]"
                     type="submit">
@@ -93,7 +97,6 @@
         </div>
     </main>
     @include('layout.footer')
-
 </body>
 
 </html>
