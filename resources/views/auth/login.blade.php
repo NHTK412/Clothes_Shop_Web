@@ -91,7 +91,7 @@
             <div class="text-center mt-lg">
                 <p class="font-body-sm text-body-sm text-secondary">
                     Bạn chưa có tài khoản?
-                    <a class="text-primary font-bold hover:underline" href="#">Đăng ký ngay</a>
+                    <a class="text-primary font-bold hover:underline" href="{{ route('register') }}">Đăng ký ngay</a>
                 </p>
             </div>
         </div>

@@ -16,9 +16,6 @@ class AuthController extends Controller
 
     public function login()
     {
-        // $password = bcrypt('Tuankhang412@');
-        // dd($password);
-
         return view('auth.login');
     }
 
@@ -26,9 +23,6 @@ class AuthController extends Controller
     {
         $email = $request->input('email');
         $password = $request->input('password');
-
-        // Hask password trước khi xác thực
-
         if (! $this->authService->authenticate($email, $password)) {
             return back()->withErrors(
                 [
@@ -36,8 +30,19 @@ class AuthController extends Controller
                 ]);
         }
 
-        // Tạo session
         return 'Đăng nhập thành công!';
+    }
+
+    public function logout()
+    {
+        $this->authService->logout();
+
+        return redirect()->route('login');
+    }
+
+    public function registerFormUI()
+    {
+        return view('auth.register');
     }
 
     public function index()
@@ -47,12 +52,5 @@ class AuthController extends Controller
         }
 
         return 'Bạn đã đăng nhập!';
-    }
-
-    public function logout()
-    {
-        $this->authService->logout();
-
-        return redirect()->route('login');
     }
 }
