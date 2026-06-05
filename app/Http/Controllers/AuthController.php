@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Services\AuthService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Password;
 
 class AuthController extends Controller
 {
@@ -15,38 +18,31 @@ class AuthController extends Controller
         $this->authService = $authService;
     }
 
-    public function login()
+    public function authenticateApi(LoginRequest $request)
     {
-        return view('auth.login');
-    }
+        $credentials = $request->only('email', 'password');
 
-    public function authenticate(LoginRequest $request)
-    {
-        $email = $request->input('email');
-        $password = $request->input('password');
-        if (! $this->authService->authenticate($email, $password)) {
-            return back()->withErrors(
-                [
-                    'login' => 'Thông tin đăng nhập không hợp lệ.',
-                ]);
+        $token = Auth::attempt($credentials);
+
+        if (! $token) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Sai tài khoản hoặc mật khẩu',
+            ], 401);
         }
 
-        return 'Đăng nhập thành công!';
+        return response()->json([
+            'status' => 'success',
+            'message' => null,
+            'data' => [
+                'access_token' => $token,
+                'expires_in' => Auth::factory()->getTTL() * 60,
+                'user' => Auth::user(),
+            ],
+        ], 200);
     }
 
-    public function logout()
-    {
-        $this->authService->logout();
-
-        return redirect()->route('login');
-    }
-
-    public function registerFormUI()
-    {
-        return view('auth.register');
-    }
-
-    public function register(RegisterRequest $request)
+    public function registerApi(RegisterRequest $request)
     {
         $newUser = $this->authService->register(
             $request->input('name'),
@@ -56,26 +52,65 @@ class AuthController extends Controller
         );
 
         if (! $newUser) {
-            return back()->withErrors(
-                [
-                    'register' => 'Đăng ký thất bại, vui lòng thử lại.',
-                ]);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Đăng ký thất bại, vui lòng thử lại.',
+            ], 400);
         }
 
-        return redirect()->route('login');
+        return response()->json([
+            'status' => 'success',
+            'message' => null,
+            'data' => $newUser,
+        ], 201);
     }
 
-    public function index()
+    public function sendResetPasswordLinkApi(Request $request)
     {
-        if (! $this->authService->checkLogin()) {
-            return redirect()->route('login');
-        }
+        $request->validate([
+            'email' => 'required|email',
+        ]);
 
-        return 'Bạn đã đăng nhập!';
+        $status = Password::sendResetLink(
+            ['email' => $request->email]
+        );
+
+        return $status === Password::RESET_LINK_SENT
+            ? response()->json([
+                'status' => 'success',
+                'message' => null,
+            ], 204)
+            : response()->json([
+                'status' => 'error',
+                'message' => 'Không tìm thấy email',
+            ], 404);
     }
 
-    public function resetPasswordForm()
+    public function resetPasswordApi(Request $request)
     {
-        return view('auth.reset-password');
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function ($user, $password) {
+                $user->forceFill([
+                    'password' => bcrypt($password),
+                ])->save();
+            }
+        );
+
+        return $status === Password::PASSWORD_RESET
+            ? response()->json([
+                'status' => 'success',
+                'message' => null,
+            ], 204)
+            : response()->json([
+                'status' => 'error',
+                'message' => 'Đặt lại mật khẩu thất bại',
+            ], 400);
     }
 }
