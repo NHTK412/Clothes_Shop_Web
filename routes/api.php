@@ -17,3 +17,6 @@ Route::prefix('auth')->group(function () {
 
     Route::post('/reset-password', [AuthController::class, 'resetPasswordApi'])->name('password.update.api');
 });
+
+Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+Route::get('/products/{id}', [ProductController::class, 'show'])->name('products.show');

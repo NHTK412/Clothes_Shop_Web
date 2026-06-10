@@ -11,6 +11,7 @@ class User extends Authenticatable implements JWTSubject
 {
     use HasFactory, Notifiable;
 
+
     public function oauthProvider()
     {
         return $this->hasMany(OAuthProvider::class);
