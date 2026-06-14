@@ -22,6 +22,12 @@ Route::post('/login', function () {
 
 });
 
+Route::get('/api-docs.yaml', function () {
+    return response()->file(storage_path('api-docs/api-docs.yaml'), [
+        'Content-Type' => 'application/x-yaml'
+    ]);
+});
+
 // Swagger UI viewer (uses CDN-swagger-ui, loads /api-docs.yaml)
 Route::get('/swagger', function () {
     return view('swagger');
