@@ -1,10 +1,10 @@
 openapi: 3.0.0
 info:
-  title: 'Clothes Shop API'
-  version: 1.0.0
-  description: 'Minimal OpenAPI spec for product endpoints (served to Swagger UI).'
+  title: "Clothes Shop API"
+  version: "1.0.0"
+  description: "OpenAPI spec for product and category endpoints."
 servers:
-  - url: 'http://127.0.0.1:8000'
+  - url: "http://127.0.0.1:8000"
 components:
   schemas:
     Product:
@@ -73,134 +73,368 @@ components:
 paths:
   /api/products:
     get:
-      summary: 'List products'
+      summary: "List products"
       parameters:
-        -
-          name: per_page
+        - name: per_page
           in: query
           schema:
             type: integer
-        -
-          name: page
+        - name: page
           in: query
           schema:
             type: integer
-        -
-          name: sort
+        - name: sort
           in: query
           schema:
             type: string
-        -
-          name: category
+        - name: category
           in: query
           schema:
             type: string
-        -
-          name: q
+        - name: q
           in: query
           schema:
             type: string
-        -
-          name: min_price
+        - name: min_price
           in: query
           schema:
             type: number
-        -
-          name: max_price
+        - name: max_price
           in: query
           schema:
             type: number
-        -
-          name: in_stock
+        - name: in_stock
           in: query
           schema:
             type: boolean
       responses:
-        200:
+        "200":
           description: OK
           content:
             application/json:
               schema:
                 allOf:
-                  - { $ref: '#/components/schemas/Envelope' }
-                  - { type: object, properties: { data: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Product' } }, pagination: { $ref: '#/components/schemas/Pagination' } } } } }
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Product'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
     post:
-      summary: 'Create product (admin)'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
+      openapi: 3.0.0
+      info:
+        title: "Clothes Shop API"
+        version: "1.0.0"
+        description: "OpenAPI spec for product and category endpoints."
+      servers:
+        - url: "http://127.0.0.1:8000"
+      components:
+        schemas:
+          Product:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              description:
+                type: string
+              price:
+                type: number
+                format: float
+              discount_price:
+                type: number
+                nullable: true
+              image:
+                type: string
+                nullable: true
+              created_at:
+                type: string
+                format: date-time
+              updated_at:
+                type: string
+                format: date-time
+          Category:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              parent_id:
+                type: integer
+                nullable: true
+              created_at:
+                type: string
+                format: date-time
+              updated_at:
+                type: string
+                format: date-time
+          Pagination:
+            type: object
+            properties:
+              page:
+                type: integer
+              limit:
+                type: integer
+              totalItems:
+                type: integer
+              totalPages:
+                type: integer
+          Envelope:
+            type: object
+            properties:
+              status:
+                type: integer
+              success:
+                type: boolean
+              message:
+                type: string
+                nullable: true
+              data:
+                type: object
+      paths:
+        /api/products:
+          get:
+            summary: "List products"
+            parameters:
+              - name: per_page
+                in: query
+                schema:
+                  type: integer
+              - name: page
+                in: query
+                schema:
+                  type: integer
+            responses:
+              "200":
+                description: OK
+                content:
+                  application/json:
+                    schema:
+                      allOf:
+                        - $ref: '#/components/schemas/Envelope'
+                        - type: object
+                          properties:
+                            data:
+                              type: object
+                              properties:
+                                items:
+                                  type: array
+                                  items:
+                                    $ref: '#/components/schemas/Product'
+                                pagination:
+                                  $ref: '#/components/schemas/Pagination'
+          post:
+            summary: "Create product (admin)"
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      price:
+                        type: number
+                      categories:
+                        type: array
+                        items:
+                          type: integer
+                  example:
+                    name: "Black Tee"
+                    description: "Comfortable cotton tee"
+                    price: 199000.00
+                    categories: [1]
+            responses:
+              "201":
+                description: Created
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Envelope'
+        /api/products/{id}:
+          get:
+            summary: "Get product by id"
+            parameters:
+              - name: id
+                in: path
+                required: true
+                schema:
                   type: string
-                description:
-                  type: string
-                price:
-                  type: number
-                discount_price:
-                  type: number
-                image:
-                  type: string
-                categories:
-                  type: array
-                  items: { type: integer }
-                variants:
-                  type: array
-                  items: { type: object, properties: { sku: { type: string }, price: { type: number }, discount_price: { type: number, nullable: true }, stock: { type: integer }, image: { type: string, nullable: true } } }
-              required:
-                - name
-                - price
-            example:
-              name: 'Black Tee'
-              description: 'Comfortable cotton tee'
-              price: '199000.00'
-              discount_price: null
-              categories: '1'
-              variants: '1'
-      responses:
-        201:
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Envelope'
-              examples:
-                product:
-                  value: { status: 201, success: true, message: null, data: { items: { id: 1, name: 'Basic White T-Shirt', description: 'Comfortable cotton tee', price: '199000.00', discount_price: null, image: null, created_at: '2026-06-14T20:52:40.000000Z', updated_at: '2026-06-14T20:52:40.000000Z', variants: [{ id: 1, sku: TSHIRT-WHT-S, price: '199000.00', discount_price: null, stock: 50, image: null, product_id: 1, created_at: '2026-06-14T20:52:40.000000Z', updated_at: '2026-06-14T20:52:40.000000Z' }], categories: [{ id: 1, name: T-Shirts, parent_id: null, created_at: '2026-06-14T20:52:40.000000Z', updated_at: '2026-06-14T20:52:40.000000Z', pivot: { product_id: 1, category_id: 1 } }] }, pagination: null } }
-  '/api/products/{id}':
-    get:
-      summary: 'Get product by id or slug'
-      parameters:
-        -
-          name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        200:
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Envelope'
-              examples:
-                product:
-                  value: { status: 200, success: true, message: null, data: { items: { id: 1, name: 'Basic White T-Shirt', description: 'Comfortable cotton tee', price: '199000.00', discount_price: null, image: null, created_at: '2026-06-14T20:52:40.000000Z', updated_at: '2026-06-14T20:52:40.000000Z', variants: [{ id: 1, sku: TSHIRT-WHT-S, price: '199000.00', discount_price: null, stock: 50, image: null, product_id: 1, created_at: '2026-06-14T20:52:40.000000Z', updated_at: '2026-06-14T20:52:40.000000Z' }], categories: [{ id: 1, name: T-Shirts, parent_id: null, created_at: '2026-06-14T20:52:40.000000Z', updated_at: '2026-06-14T20:52:40.000000Z', pivot: { product_id: 1, category_id: 1 } }] }, pagination: null } }
-    put:
-      summary: 'Update product (admin)'
-      parameters:
-        -
-          name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
+            responses:
+              "200":
+                description: OK
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Envelope'
+          put:
+            summary: "Update product (admin)"
+            parameters:
+              - name: id
+                in: path
+                required: true
+                schema:
+                  type: integer
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      price:
+                        type: number
+            responses:
+              "200":
+                description: Updated
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Envelope'
+          delete:
+            summary: "Delete product (admin)"
+            parameters:
+              - name: id
+                in: path
+                required: true
+                schema:
+                  type: integer
+            responses:
+              "200":
+                description: Deleted
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Envelope'
+        /api/categories:
+          get:
+            summary: "List categories"
+            parameters:
+              - name: per_page
+                in: query
+                schema:
+                  type: integer
+              - name: page
+                in: query
+                schema:
+                  type: integer
+            responses:
+              "200":
+                description: OK
+                content:
+                  application/json:
+                    schema:
+                      allOf:
+                        - $ref: '#/components/schemas/Envelope'
+                        - type: object
+                          properties:
+                            data:
+                              type: object
+                              properties:
+                                items:
+                                  type: array
+                                  items:
+                                    $ref: '#/components/schemas/Category'
+                                pagination:
+                                  $ref: '#/components/schemas/Pagination'
+          post:
+            summary: "Create category (admin)"
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      parent_id:
+                        type: integer
+                        nullable: true
+                  example:
+                    name: "T-Shirts"
+                    parent_id: null
+            responses:
+              "201":
+                description: Created
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Envelope'
+        /api/categories/{id}:
+          get:
+            summary: "Get category"
+            parameters:
+              - name: id
+                in: path
+                required: true
+                schema:
+                  type: integer
+            responses:
+              "200":
+                description: OK
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Envelope'
+          put:
+            summary: "Update category (admin)"
+            parameters:
+              - name: id
+                in: path
+                required: true
+                schema:
+                  type: integer
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      parent_id:
+                        type: integer
+                        nullable: true
+                  example:
+                    name: "T-Shirts Updated"
+                    parent_id: null
+            responses:
+              "200":
+                description: Updated
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Envelope'
+          delete:
+            summary: "Delete category (admin)"
+            parameters:
+              - name: id
+                in: path
+                required: true
+                schema:
+                  type: integer
+            responses:
+              "200":
+                description: Deleted
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Envelope'
           application/json:
             schema:
               type: object

@@ -21,3 +21,8 @@ Route::post('/login', function () {
     return back()->withErrors(['message' => 'Invalid credentials']);
 
 });
+
+// Swagger UI viewer (uses CDN-swagger-ui, loads /api-docs.yaml)
+Route::get('/swagger', function () {
+    return view('swagger');
+});
