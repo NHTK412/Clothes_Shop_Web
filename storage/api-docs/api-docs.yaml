@@ -54,6 +54,38 @@ components:
           nullable: true
         data:
           type: object
+    AttributeValue:
+      type: object
+      properties:
+        id:
+          type: integer
+        attribute_type_id:
+          type: integer
+        value:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AttributeType:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        attributeValues:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttributeValue"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 paths:
   /api/products:
     get:
@@ -91,6 +123,18 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: 'attr[color]'
+          in: query
+          description: "Filter by color. Comma-separated values allowed (e.g. Red,Blue)."
+          schema:
+            type: string
+          example: "Red,Blue"
+        - name: 'attr[size]'
+          in: query
+          description: "Filter by size. Comma-separated values allowed (e.g. S,M)."
+          schema:
+            type: string
+          example: "S,M"
       responses:
         "200":
           description: "OK"
@@ -150,6 +194,10 @@ paths:
                       image:
                         type: string
                         nullable: true
+                      attribute_value_ids:
+                        type: array
+                        items:
+                          type: integer
               required:
                 - name
                 - price
@@ -289,7 +337,22 @@ paths:
                 variants:
                   type: array
                   items:
-                    type: integer
+                    oneOf:
+                      - type: integer
+                      - type: object
+                        properties:
+                          id:
+                            type: integer
+                          sku:
+                            type: string
+                          price:
+                            type: number
+                          stock:
+                            type: integer
+                          attribute_value_ids:
+                            type: array
+                            items:
+                              type: integer
             example:
               name: "Basic White T-Shirt"
               description: "Comfortable cotton tee"
@@ -435,4 +498,149 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Envelope'
+
+  /api/attributes:
+    get:
+      summary: 'List attribute types'
+      parameters:
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/Envelope' }
+                  - { type: object, properties: { data: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/AttributeType' } }, pagination: { $ref: '#/components/schemas/Pagination' } } } } }
+    post:
+      summary: 'Create attribute type (admin)'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                values:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - name
+            example:
+              name: Color
+              values:
+                - Red
+                - Blue
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+
+  /api/attributes/{id}:
+    get:
+      summary: 'Get attribute type'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    put:
+      summary: 'Update attribute type (admin)'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                values:
+                  type: array
+                  items:
+                    type: string
+            example:
+              name: Size
+              values:
+                - S
+                - M
+                - L
+      responses:
+        200:
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+    delete:
+      summary: 'Delete attribute type (admin)'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+  /api/attributes/{id}/values:
+    get:
+      summary: 'List attribute values for given attribute type id or name'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        value:
+                          type: string
+        404:
+          description: Not found
 

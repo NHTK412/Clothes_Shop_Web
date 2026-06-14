@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class AttributeValue extends Model
 {
+    protected $fillable = ['attribute_type_id','value'];
+
     public function attributeType()
     {
         return $this->belongsTo(AttributeType::class);

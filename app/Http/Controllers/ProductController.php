@@ -27,7 +27,7 @@ class ProductController extends Controller
         $inStock = $request->boolean('in_stock', false);
         $attrs = $request->query('attr', []); // e.g. attr[color]=blue&attr[size]=M
 
-        $query = Product::with(['variants', 'categories']);
+        $query = Product::with(['variants.attributeValues', 'categories']);
 
         if ($category) {
             $query->whereHas('categories', function ($qcat) use ($category) {
@@ -151,7 +151,7 @@ class ProductController extends Controller
      */
     public function show($id)
     {
-        $productQuery = Product::with(['variants', 'categories', 'reviews.user', 'reviews.images']);
+        $productQuery = Product::with(['variants.attributeValues', 'categories', 'reviews.user', 'reviews.images']);
 
         if (is_numeric($id)) {
             $product = $productQuery->where('id', $id)->firstOrFail();
@@ -263,6 +263,18 @@ class ProductController extends Controller
                         $pv->image = $v['image'] ?? null;
                         $pv->product_id = $product->id;
                         $pv->save();
+
+                        // attach attribute values if provided (array of ids)
+                        if (!empty($v['attribute_value_ids']) && is_array($v['attribute_value_ids'])) {
+                            $pv->attributeValues()->sync(array_map('intval', $v['attribute_value_ids']));
+                        } elseif (!empty($v['attribute_values']) && is_array($v['attribute_values'])) {
+                            // accept array of attribute value objects or values (try id first)
+                            $ids = array_map(function ($it) {
+                                if (is_array($it) && isset($it['id'])) return (int)$it['id'];
+                                return (int)$it;
+                            }, $v['attribute_values']);
+                            $pv->attributeValues()->sync(array_filter($ids));
+                        }
                     }
                 } else {
                     // array of ids (or strings)
@@ -361,17 +373,49 @@ class ProductController extends Controller
                 if (is_array($first) && array_key_exists('sku', $first)) {
                     // array of objects => create new variants and assign
                     foreach ($varsRaw as $v) {
-                        $pv = new ProductVariant();
-                        $pv->sku = $v['sku'] ?? null;
-                        if ($pv->sku && ProductVariant::where('sku', $pv->sku)->exists()) {
-                            $pv->sku = $pv->sku . '-' . uniqid();
+                        $pv = null;
+                        if (!empty($v['id'])) {
+                            $pv = ProductVariant::find((int)$v['id']);
                         }
-                        $pv->price = $v['price'] ?? 0;
-                        $pv->discount_price = $v['discount_price'] ?? null;
-                        $pv->stock = $v['stock'] ?? 0;
-                        $pv->image = $v['image'] ?? null;
-                        $pv->product_id = $product->id;
-                        $pv->save();
+                        if ($pv) {
+                            // update existing
+                            if (array_key_exists('sku', $v)) {
+                                $pv->sku = $v['sku'] ?? $pv->sku;
+                                if ($pv->sku && ProductVariant::where('sku', $pv->sku)->where('id', '!=', $pv->id)->exists()) {
+                                    $pv->sku = $pv->sku . '-' . uniqid();
+                                }
+                            }
+                            if (array_key_exists('price', $v)) $pv->price = $v['price'];
+                            if (array_key_exists('discount_price', $v)) $pv->discount_price = $v['discount_price'];
+                            if (array_key_exists('stock', $v)) $pv->stock = $v['stock'];
+                            if (array_key_exists('image', $v)) $pv->image = $v['image'];
+                            $pv->product_id = $product->id;
+                            $pv->save();
+                        } else {
+                            // create new
+                            $pv = new ProductVariant();
+                            $pv->sku = $v['sku'] ?? null;
+                            if ($pv->sku && ProductVariant::where('sku', $pv->sku)->exists()) {
+                                $pv->sku = $pv->sku . '-' . uniqid();
+                            }
+                            $pv->price = $v['price'] ?? 0;
+                            $pv->discount_price = $v['discount_price'] ?? null;
+                            $pv->stock = $v['stock'] ?? 0;
+                            $pv->image = $v['image'] ?? null;
+                            $pv->product_id = $product->id;
+                            $pv->save();
+                        }
+
+                        // sync attribute values if provided
+                        if (!empty($v['attribute_value_ids']) && is_array($v['attribute_value_ids'])) {
+                            $pv->attributeValues()->sync(array_map('intval', $v['attribute_value_ids']));
+                        } elseif (!empty($v['attribute_values']) && is_array($v['attribute_values'])) {
+                            $ids = array_map(function ($it) {
+                                if (is_array($it) && isset($it['id'])) return (int)$it['id'];
+                                return (int)$it;
+                            }, $v['attribute_values']);
+                            $pv->attributeValues()->sync(array_filter($ids));
+                        }
                     }
                 } else {
                     // array of ids -> make these the product's variants; unassign others
