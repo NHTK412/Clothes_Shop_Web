@@ -38,22 +38,22 @@ class ProductController extends Controller
         if ($q) {
             $query->where(function ($s) use ($q) {
                 $s->where('name', 'like', "%{$q}%")
-                  ->orWhere('description', 'like', "%{$q}%")
-                  ->orWhereHas('variants', function ($v) use ($q) {
-                      $v->where('sku', 'like', "%{$q}%");
-                  })
-                  ->orWhereHas('categories', function ($c) use ($q) {
-                      $c->where('name', 'like', "%{$q}%");
-                  })
-                  ->orWhereHas('variants.attributeValues', function ($av) use ($q) {
-                      $av->where('value', 'like', "%{$q}%")
-                         ->orWhere('display_value', 'like', "%{$q}%");
-                  });
+                    ->orWhere('description', 'like', "%{$q}%")
+                    ->orWhereHas('variants', function ($v) use ($q) {
+                        $v->where('sku', 'like', "%{$q}%");
+                    })
+                    ->orWhereHas('categories', function ($c) use ($q) {
+                        $c->where('name', 'like', "%{$q}%");
+                    })
+                    ->orWhereHas('variants.attributeValues', function ($av) use ($q) {
+                        $av->where('value', 'like', "%{$q}%")
+                            ->orWhere('display_value', 'like', "%{$q}%");
+                    });
             });
         }
 
         // Filter by variant price, stock and attribute values
-        if ($minPrice || $maxPrice || $inStock || !empty($attrs)) {
+        if ($minPrice || $maxPrice || $inStock || ! empty($attrs)) {
             $query->whereHas('variants', function ($v) use ($minPrice, $maxPrice, $inStock, $attrs) {
                 if ($minPrice !== null && $minPrice !== '') {
                     $v->where('price', '>=', (float) $minPrice);
@@ -76,7 +76,7 @@ class ProductController extends Controller
                             $at->where('name', $attrName);
                         })->where(function ($q) use ($values) {
                             $q->whereIn('value', $values)
-                              ->orWhereIn('display_value', $values);
+                                ->orWhereIn('display_value', $values);
                         });
                     });
                 }
@@ -108,10 +108,12 @@ class ProductController extends Controller
 
         if ($perPage <= 0) {
             $products = $query->get();
+
             return response()->json($products);
         }
 
         $products = $query->paginate($perPage, ['*'], 'page', $page);
+
         return response()->json($products);
     }
 
