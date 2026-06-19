@@ -112,7 +112,7 @@ class CartController extends Controller
                     properties: [
                         new OA\Property(property: 'status', type: 'integer', example: 401),
                         new OA\Property(property: 'success', type: 'boolean', example: false),
-                        new OA\Property(property: 'message', type: 'string', example: 'Chưa xác thực.'),
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
                         new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
                     ],
                     type: 'object'
@@ -125,7 +125,7 @@ class CartController extends Controller
                     properties: [
                         new OA\Property(property: 'status', type: 'integer', example: 422),
                         new OA\Property(property: 'success', type: 'boolean', example: false),
-                        new OA\Property(property: 'message', type: 'string', example: 'Dữ liệu không hợp lệ.'),
+                        new OA\Property(property: 'message', type: 'string', example: 'The given data was invalid.'),
                         new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
                     ],
                     type: 'object'

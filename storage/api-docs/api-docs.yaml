@@ -396,7 +396,7 @@ paths:
                     example: false
                   message:
                     type: string
-                    example: 'Chưa xác thực.'
+                    example: Unauthenticated.
                   data:
                     type: object
                     example: null
@@ -416,7 +416,7 @@ paths:
                     example: false
                   message:
                     type: string
-                    example: 'Dữ liệu không hợp lệ.'
+                    example: 'The given data was invalid.'
                   data:
                     type: object
                     example: null
