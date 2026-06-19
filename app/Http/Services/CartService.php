@@ -11,6 +11,41 @@ use Illuminate\Validation\ValidationException;
 
 class CartService
 {
+    public function getItems(User $user): array
+    {
+        $cart = Cart::with([
+            'items.productVariant.product',
+            'items.productVariant.attributeValues.attributeType',
+        ])->where('user_id', $user->id)->first();
+
+        if (! $cart) {
+            return [];
+        }
+
+        return $cart->items->map(function (CartItem $item) {
+            $variant = $item->productVariant;
+            $product = $variant?->product;
+
+            return [
+                'cart_item_id' => $item->id,
+                'product_variant_id' => $variant?->id,
+                'product_name' => $product?->name,
+                'attributes' => $variant?->attributeValues->map(function ($attributeValue) {
+                    return [
+                        'type' => $attributeValue->attributeType?->name,
+                        'display_type' => $attributeValue->attributeType?->display_name,
+                        'value' => $attributeValue->value,
+                        'display_value' => $attributeValue->display_value,
+                    ];
+                })->values()->toArray() ?? [],
+                'image' => $variant?->image ?? $product?->image,
+                'original_price' => $variant?->price,
+                'discount_price' => $variant?->discount_price,
+                'quantity' => $item->quantity,
+            ];
+        })->values()->toArray();
+    }
+
     public function addItem(User $user, int $productVariantId, int $quantity = 1): array
     {
         return DB::transaction(function () use ($user, $productVariantId, $quantity) {

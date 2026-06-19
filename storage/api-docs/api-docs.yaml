@@ -281,6 +281,107 @@ paths:
         422:
           description: 'Dữ liệu không hợp lệ'
   /api/cart/items:
+    get:
+      tags:
+        - 'Giỏ hàng'
+      summary: 'Lấy danh sách sản phẩm trong giỏ hàng hiện tại'
+      description: 'Trả về danh sách sản phẩm trong giỏ hàng của người dùng đã đăng nhập, bao gồm tên sản phẩm, thuộc tính biến thể, hình ảnh, giá gốc và giá giảm.'
+      operationId: getCurrentCartItems
+      responses:
+        200:
+          description: 'Lấy danh sách sản phẩm trong giỏ hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          properties:
+                            cart_item_id:
+                              type: integer
+                              example: 1
+                            product_variant_id:
+                              type: integer
+                              example: 1
+                            product_name:
+                              type: string
+                              example: 'Áo thun basic'
+                            attributes:
+                              type: array
+                              items:
+                                properties:
+                                  type:
+                                    type: string
+                                    example: color
+                                  display_type:
+                                    type: string
+                                    example: 'Màu sắc'
+                                  value:
+                                    type: string
+                                    example: black
+                                  display_value:
+                                    type: string
+                                    example: Đen
+                                type: object
+                            image:
+                              type: string
+                              example: products/ao-thun-den.jpg
+                              nullable: true
+                            original_price:
+                              type: number
+                              format: float
+                              example: 199000
+                            discount_price:
+                              type: number
+                              format: float
+                              example: 149000
+                              nullable: true
+                            quantity:
+                              type: integer
+                              example: 2
+                          type: object
+                      pagination:
+                        type: object
+                        example: null
+                        nullable: true
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
     post:
       tags:
         - 'Giỏ hàng'

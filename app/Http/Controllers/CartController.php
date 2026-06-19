@@ -15,6 +15,90 @@ class CartController extends Controller
         $this->cartService = $cartService;
     }
 
+    #[OA\Get(
+        path: '/api/cart/items',
+        operationId: 'getCurrentCartItems',
+        summary: 'Lấy danh sách sản phẩm trong giỏ hàng hiện tại',
+        description: 'Trả về danh sách sản phẩm trong giỏ hàng của người dùng đã đăng nhập, bao gồm tên sản phẩm, thuộc tính biến thể, hình ảnh, giá gốc và giá giảm.',
+        security: [['bearerAuth' => []]],
+        tags: ['Giỏ hàng'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Lấy danh sách sản phẩm trong giỏ hàng thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 200),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, example: null),
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(
+                                    property: 'items',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'cart_item_id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'product_variant_id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'product_name', type: 'string', example: 'Áo thun basic'),
+                                            new OA\Property(
+                                                property: 'attributes',
+                                                type: 'array',
+                                                items: new OA\Items(
+                                                    properties: [
+                                                        new OA\Property(property: 'type', type: 'string', example: 'color'),
+                                                        new OA\Property(property: 'display_type', type: 'string', example: 'Màu sắc'),
+                                                        new OA\Property(property: 'value', type: 'string', example: 'black'),
+                                                        new OA\Property(property: 'display_value', type: 'string', example: 'Đen'),
+                                                    ],
+                                                    type: 'object'
+                                                )
+                                            ),
+                                            new OA\Property(property: 'image', type: 'string', nullable: true, example: 'products/ao-thun-den.jpg'),
+                                            new OA\Property(property: 'original_price', type: 'number', format: 'float', example: 199000),
+                                            new OA\Property(property: 'discount_price', type: 'number', format: 'float', nullable: true, example: 149000),
+                                            new OA\Property(property: 'quantity', type: 'integer', example: 2),
+                                        ],
+                                        type: 'object'
+                                    )
+                                ),
+                                new OA\Property(property: 'pagination', type: 'object', nullable: true, example: null),
+                            ],
+                            type: 'object'
+                        ),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Chưa xác thực',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 401),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+        ]
+    )]
+    public function getItems(Request $request)
+    {
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'items' => $this->cartService->getItems($request->user()),
+                'pagination' => null,
+            ],
+        ], 200);
+    }
+
     #[OA\Post(
         path: '/api/cart/items',
         operationId: 'addCartItem',

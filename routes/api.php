@@ -43,5 +43,6 @@ Route::delete('/attributes/{id}', [AttributeTypeController::class, 'destroy'])->
 Route::get('/attributes/{idOrName}/values', [AttributeTypeController::class, 'values'])->name('attributes.values');
 
 Route::middleware('auth:api')->group(function () {
+    Route::get('/cart/items', [CartController::class, 'getItems'])->name('cart.items.index');
     Route::post('/cart/items', [CartController::class, 'addItem'])->name('cart.items.add');
 });
