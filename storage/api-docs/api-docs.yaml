@@ -863,6 +863,145 @@ paths:
       security:
         -
           bearerAuth: []
+  /api/ghn/provinces:
+    get:
+      tags:
+        - GHN
+      summary: 'Lấy danh sách tỉnh/thành từ GHN'
+      description: 'Chuyển tiếp API GHN và chỉ trả về các trường cần thiết gồm mã tỉnh, tên tỉnh và mã code.'
+      operationId: getGhnProvinces
+      responses:
+        200:
+          description: 'Lấy danh sách tỉnh/thành thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          properties:
+                            province_id:
+                              type: integer
+                              example: 202
+                            province_name:
+                              type: string
+                              example: 'Hồ Chí Minh'
+                            code:
+                              type: string
+                              example: '202'
+                          type: object
+                      pagination:
+                        type: object
+                        example: null
+                        nullable: true
+                    type: object
+                type: object
+  /api/ghn/districts:
+    get:
+      tags:
+        - GHN
+      summary: 'Lấy danh sách quận/huyện từ GHN'
+      description: 'Lấy danh sách quận/huyện theo mã tỉnh/thành và chỉ trả về các trường cần thiết.'
+      operationId: getGhnDistricts
+      parameters:
+        -
+          name: province_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 202
+      responses:
+        200:
+          description: 'Lấy danh sách quận/huyện thành công'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+  /api/ghn/wards:
+    get:
+      tags:
+        - GHN
+      summary: 'Lấy danh sách phường/xã từ GHN'
+      description: 'Lấy danh sách phường/xã theo mã quận/huyện và chỉ trả về các trường cần thiết.'
+      operationId: getGhnWards
+      parameters:
+        -
+          name: district_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 3695
+      responses:
+        200:
+          description: 'Lấy danh sách phường/xã thành công'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+  /api/ghn/shipping-fee:
+    get:
+      tags:
+        - GHN
+      summary: 'Tính phí giao hàng GHN'
+      description: 'Tính phí giao hàng bằng GHN với thông số gói hàng mặc định cho sản phẩm quần áo. Danh sách sản phẩm được lấy từ giỏ hàng của người dùng đang đăng nhập.'
+      operationId: calculateGhnShippingFee
+      parameters:
+        -
+          name: to_ward_code
+          in: query
+          required: true
+          schema:
+            type: string
+          example: '90749'
+        -
+          name: to_district_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 3695
+      responses:
+        200:
+          description: 'Tính phí giao hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      total:
+                        type: integer
+                        example: 49500
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
   '/api/auth/reset-password/{token}':
     get:
       tags:
@@ -1124,5 +1263,7 @@ tags:
     description: 'Giỏ hàng'
   - name: 'Danh mục'
     description: 'Danh mục'
+  - name: GHN
+    description: GHN
   - name: 'Sản phẩm'
     description: 'Sản phẩm'

@@ -35,4 +35,16 @@ return [
         ],
     ],
 
+    'ghn' => [
+        'base_url' => env('GHN_BASE_URL', 'https://dev-online-gateway.ghn.vn'),
+        'token' => env('GHN_TOKEN'),
+        'shop_id' => env('GHN_SHOP_ID'),
+        'verify_ssl' => env('GHN_VERIFY_SSL', true),
+        'default_service_type_id' => env('GHN_DEFAULT_SERVICE_TYPE_ID', 2),
+        'default_weight' => env('GHN_DEFAULT_WEIGHT', 500),
+        'default_length' => env('GHN_DEFAULT_LENGTH', 30),
+        'default_width' => env('GHN_DEFAULT_WIDTH', 25),
+        'default_height' => env('GHN_DEFAULT_HEIGHT', 5),
+    ],
+
 ];

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AttributeTypeController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\GhnController;
 use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,7 +43,15 @@ Route::put('/attributes/{id}', [AttributeTypeController::class, 'update'])->name
 Route::delete('/attributes/{id}', [AttributeTypeController::class, 'destroy'])->name('attributes.destroy');
 Route::get('/attributes/{idOrName}/values', [AttributeTypeController::class, 'values'])->name('attributes.values');
 
+Route::prefix('ghn')->group(function () {
+    Route::get('/provinces', [GhnController::class, 'provinces'])->name('ghn.provinces');
+    Route::get('/districts', [GhnController::class, 'districts'])->name('ghn.districts');
+    Route::get('/wards', [GhnController::class, 'wards'])->name('ghn.wards');
+});
+
 Route::middleware('auth:api')->group(function () {
+    Route::get('/ghn/shipping-fee', [GhnController::class, 'shippingFee'])->name('ghn.shipping-fee');
+
     Route::get('/cart/items', [CartController::class, 'getItems'])->name('cart.items.index');
     Route::get('/cart/items/count', [CartController::class, 'getCountItem'])->name('cart.items.count');
     Route::post('/cart/items', [CartController::class, 'addItem'])->name('cart.items.add');

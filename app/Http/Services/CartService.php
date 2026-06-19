@@ -134,4 +134,30 @@ class CartService
 
         return $cart->items()->sum('quantity');
     }
+
+    public function getShippingItems(User $user): array
+    {
+        $cart = Cart::with(['items.productVariant.product'])
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (! $cart) {
+            return [];
+        }
+
+        return $cart->items
+            ->filter(fn (CartItem $item) => $item->quantity > 0)
+            ->map(function (CartItem $item) {
+                $variant = $item->productVariant;
+                $product = $variant?->product;
+
+                return [
+                    'name' => $product?->name ?? 'Sản phẩm quần áo',
+                    'code' => $variant?->sku ?? (string) $item->product_variant_id,
+                    'quantity' => $item->quantity,
+                ];
+            })
+            ->values()
+            ->toArray();
+    }
 }
