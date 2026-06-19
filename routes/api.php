@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AttributeTypeController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
@@ -40,3 +41,7 @@ Route::post('/attributes', [AttributeTypeController::class, 'store'])->name('att
 Route::put('/attributes/{id}', [AttributeTypeController::class, 'update'])->name('attributes.update');
 Route::delete('/attributes/{id}', [AttributeTypeController::class, 'destroy'])->name('attributes.destroy');
 Route::get('/attributes/{idOrName}/values', [AttributeTypeController::class, 'values'])->name('attributes.values');
+
+Route::middleware('auth:api')->group(function () {
+    Route::post('/cart/items', [CartController::class, 'addItem'])->name('cart.items.add');
+});

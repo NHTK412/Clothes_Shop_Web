@@ -149,7 +149,13 @@ class AttributeTypeController extends Controller
         $type = AttributeType::findOrFail($id);
         $type->attributeValues()->delete();
         $type->delete();
-        return response()->json(['message' => 'Deleted'], 200);
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => null,
+        ], 200);
     }
 
     /**
@@ -178,7 +184,12 @@ class AttributeTypeController extends Controller
             $type = AttributeType::with('attributeValues')->where('name', $idOrName)->first();
         }
         if (!$type) {
-            return response()->json(['message' => 'Not found'], 404);
+            return response()->json([
+                'status' => 404,
+                'success' => false,
+                'message' => 'Not found',
+                'data' => null,
+            ], 404);
         }
 
         return response()->json(['data' => $type->attributeValues->map(function ($v) {
