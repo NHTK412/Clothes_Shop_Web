@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
@@ -109,12 +110,41 @@ class ProductController extends Controller
         if ($perPage <= 0) {
             $products = $query->get();
 
-            return response()->json($products);
+            $items = $products->toArray();
+            $payload = [
+                'status' => 200,
+                'success' => true,
+                'message' => null,
+                'data' => [
+                    'items' => $items,
+                    'pagination' => null,
+                ],
+            ];
+
+            return response()->json($payload, 200);
+
         }
 
         $products = $query->paginate($perPage, ['*'], 'page', $page);
 
-        return response()->json($products);
+
+        $payload = [
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'items' => $products->items(),
+                'pagination' => [
+                    'page' => $products->currentPage(),
+                    'limit' => $products->perPage(),
+                    'totalItems' => $products->total(),
+                    'totalPages' => $products->lastPage(),
+                ],
+            ],
+        ];
+
+        return response()->json($payload, 200);
+
     }
 
     /**
@@ -122,16 +152,31 @@ class ProductController extends Controller
      */
     public function show($id)
     {
-        $product = Product::with(['variants', 'categories', 'reviews.user', 'reviews.images'])
-            ->where('id', $id)
-            ->orWhere('slug', $id)
-            ->firstOrFail();
+        $productQuery = Product::with(['variants', 'categories', 'reviews.user', 'reviews.images']);
+
+        if (is_numeric($id)) {
+            $product = $productQuery->where('id', $id)->firstOrFail();
+        } elseif (Schema::hasColumn('products', 'slug')) {
+            $product = $productQuery->where('slug', $id)->firstOrFail();
+        } else {
+            abort(404);
+        }
 
         $avg = $product->reviews()->avg('rating');
 
         $data = $product->toArray();
         $data['average_rating'] = $avg ? (float) number_format($avg, 2) : null;
 
-        return response()->json($data);
+        $payload = [
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'items' => $data,
+                'pagination' => null,
+            ],
+        ];
+
+        return response()->json($payload, 200);
     }
 }
