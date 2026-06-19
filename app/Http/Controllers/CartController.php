@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Cart;
-use App\Models\CartItem;
-use App\Models\ProductVariant;
+use App\Http\Services\CartService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use OpenApi\Attributes as OA;
 
 class CartController extends Controller
 {
+    private CartService $cartService;
+
+    public function __construct(CartService $cartService)
+    {
+        $this->cartService = $cartService;
+    }
+
     #[OA\Post(
         path: '/api/cart/items',
         operationId: 'addCartItem',
@@ -138,49 +141,11 @@ class CartController extends Controller
         ]);
 
         $quantity = $validated['quantity'] ?? 1;
-        $user = $request->user();
-
-        [$cart, $created] = DB::transaction(function () use ($user, $validated, $quantity) {
-            $cart = Cart::where('user_id', $user->id)->lockForUpdate()->first();
-
-            if (! $cart) {
-                $cart = new Cart();
-                $cart->user_id = $user->id;
-                $cart->save();
-            }
-
-            $variant = ProductVariant::where('id', $validated['product_variant_id'])
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $item = CartItem::where('cart_id', $cart->id)
-                ->where('product_variant_id', $variant->id)
-                ->first();
-
-            $newQuantity = ($item?->quantity ?? 0) + $quantity;
-
-            if ($variant->stock < $newQuantity) {
-                throw ValidationException::withMessages([
-                    'quantity' => 'Requested quantity exceeds available stock.',
-                ]);
-            }
-
-            $created = false;
-
-            if (! $item) {
-                $item = new CartItem();
-                $item->cart_id = $cart->id;
-                $item->product_variant_id = $variant->id;
-                $created = true;
-            }
-
-            $item->quantity = $newQuantity;
-            $item->save();
-
-            $cart->load(['items.productVariant.product']);
-
-            return [$cart, $created];
-        });
+        [$cart, $created] = $this->cartService->addItem(
+            $request->user(),
+            $validated['product_variant_id'],
+            $quantity
+        );
 
         $statusCode = $created ? 201 : 200;
 
