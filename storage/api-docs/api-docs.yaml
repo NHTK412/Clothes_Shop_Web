@@ -280,6 +280,151 @@ paths:
           description: 'Đặt lại mật khẩu thất bại'
         422:
           description: 'Dữ liệu không hợp lệ'
+  /api/cart/items:
+    post:
+      tags:
+        - 'Giỏ hàng'
+      summary: 'Thêm sản phẩm vào giỏ hàng'
+      description: 'Tự tạo giỏ hàng cho người dùng đã đăng nhập nếu chưa có. Nếu biến thể sản phẩm đã tồn tại trong giỏ hàng, hệ thống sẽ cộng thêm số lượng.'
+      operationId: addCartItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - product_variant_id
+              properties:
+                product_variant_id:
+                  description: 'ID của biến thể sản phẩm cần thêm vào giỏ hàng.'
+                  type: integer
+                  example: 1
+                quantity:
+                  description: 'Số lượng cần thêm. Mặc định là 1.'
+                  type: integer
+                  example: 1
+                  minimum: 1
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật số lượng sản phẩm trong giỏ hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          user_id:
+                            type: integer
+                            example: 1
+                          items:
+                            type: array
+                            items:
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 1
+                                cart_id:
+                                  type: integer
+                                  example: 1
+                                product_variant_id:
+                                  type: integer
+                                  example: 1
+                                quantity:
+                                  type: integer
+                                  example: 2
+                              type: object
+                        type: object
+                      pagination:
+                        type: object
+                        example: null
+                        nullable: true
+                    type: object
+                type: object
+        201:
+          description: 'Thêm sản phẩm vào giỏ hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 201
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: object
+                      pagination:
+                        type: object
+                        example: null
+                        nullable: true
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Chưa xác thực.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'Dữ liệu không hợp lệ hoặc không đủ tồn kho'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Dữ liệu không hợp lệ.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
   /api/categories:
     get:
       tags:
@@ -673,6 +818,8 @@ tags:
     description: 'Thuộc tính'
   - name: 'Xác thực'
     description: 'Xác thực'
+  - name: 'Giỏ hàng'
+    description: 'Giỏ hàng'
   - name: 'Danh mục'
     description: 'Danh mục'
   - name: 'Sản phẩm'
