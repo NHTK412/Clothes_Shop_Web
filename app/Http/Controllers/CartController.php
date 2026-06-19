@@ -243,4 +243,136 @@ class CartController extends Controller
             ],
         ], $statusCode);
     }
+
+    #[OA\Put(
+        path: '/api/cart/items/{cartItem}',
+        operationId: 'updateCartItem',
+        summary: 'Cập nhật số lượng sản phẩm trong giỏ hàng',
+        description: 'Cập nhật số lượng của một sản phẩm trong giỏ hàng hiện tại. Nếu số lượng nhỏ hơn hoặc bằng 0, sản phẩm sẽ bị xóa khỏi giỏ hàng. Nếu số lượng vượt quá tồn kho hiện tại, API trả lỗi 422.',
+        security: [['bearerAuth' => []]],
+        tags: ['Giỏ hàng'],
+        parameters: [
+            new OA\Parameter(
+                name: 'cartItem',
+                description: 'ID của item trong giỏ hàng.',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                example: 1
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['quantity'],
+                properties: [
+                    new OA\Property(
+                        property: 'quantity',
+                        description: 'Số lượng mới. Nhỏ hơn hoặc bằng 0 sẽ xóa sản phẩm khỏi giỏ hàng.',
+                        type: 'integer',
+                        example: 2
+                    ),
+                ],
+                type: 'object'
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Cập nhật giỏ hàng thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 200),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, example: null),
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(
+                                    property: 'items',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'cart_item_id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'product_variant_id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'product_name', type: 'string', example: 'Áo thun basic'),
+                                            new OA\Property(property: 'image', type: 'string', nullable: true, example: 'products/ao-thun-den.jpg'),
+                                            new OA\Property(property: 'original_price', type: 'number', format: 'float', example: 199000),
+                                            new OA\Property(property: 'discount_price', type: 'number', format: 'float', nullable: true, example: 149000),
+                                            new OA\Property(property: 'quantity', type: 'integer', example: 2),
+                                        ],
+                                        type: 'object'
+                                    )
+                                ),
+                                new OA\Property(property: 'pagination', type: 'object', nullable: true, example: null),
+                            ],
+                            type: 'object'
+                        ),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Chưa xác thực',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 401),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Không tìm thấy sản phẩm trong giỏ hàng',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 404),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'No query results for model.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Dữ liệu không hợp lệ hoặc vượt quá tồn kho hiện tại',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 422),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'The given data was invalid.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+        ]
+    )]
+    public function updateItem(Request $request, int $cartItem)
+    {
+        $validated = $request->validate([
+            'quantity' => 'required|integer',
+        ]);
+
+        $this->cartService->updateItem(
+            $request->user(),
+            $cartItem,
+            $validated['quantity']
+        );
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'items' => $this->cartService->getItems($request->user()),
+                'pagination' => null,
+            ],
+        ], 200);
+    }
 }

@@ -45,4 +45,5 @@ Route::get('/attributes/{idOrName}/values', [AttributeTypeController::class, 'va
 Route::middleware('auth:api')->group(function () {
     Route::get('/cart/items', [CartController::class, 'getItems'])->name('cart.items.index');
     Route::post('/cart/items', [CartController::class, 'addItem'])->name('cart.items.add');
+    Route::put('/cart/items/{cartItem}', [CartController::class, 'updateItem'])->name('cart.items.update');
 });

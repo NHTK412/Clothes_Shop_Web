@@ -90,4 +90,37 @@ class CartService
             return [$cart, $created];
         });
     }
+
+    public function updateItem(User $user, int $cartItemId, int $quantity): bool
+    {
+        return DB::transaction(function () use ($user, $cartItemId, $quantity) {
+            $item = CartItem::where('id', $cartItemId)
+                ->whereHas('cart', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                })
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($quantity <= 0) {
+                $item->delete();
+
+                return true;
+            }
+
+            $variant = ProductVariant::where('id', $item->product_variant_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($variant->stock < $quantity) {
+                throw ValidationException::withMessages([
+                    'quantity' => "Maximum available quantity is {$variant->stock}.",
+                ]);
+            }
+
+            $item->quantity = $quantity;
+            $item->save();
+
+            return false;
+        });
+    }
 }
