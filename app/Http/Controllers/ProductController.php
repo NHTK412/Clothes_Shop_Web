@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\OrderDetail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
+use OpenApi\Attributes as OA;
 
 class ProductController extends Controller
 {
@@ -15,6 +16,14 @@ class ProductController extends Controller
      * Return a list of products with variants and categories.
      * Supports optional pagination via `per_page` query param.
      */
+    #[OA\Get(
+        path: '/api/products',
+        summary: 'List products',
+        tags: ['Products'],
+        responses: [
+            new OA\Response(response: 200, description: 'Products returned successfully'),
+        ]
+    )]
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 20);

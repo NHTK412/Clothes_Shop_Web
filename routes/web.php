@@ -2,8 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
-<<<<<<< HEAD
-=======
+
 
 Route::get('/', [HomeController::class, 'index']);
 Route::get('/cache-value', [HomeController::class, 'getCacheValue']);
@@ -34,4 +33,3 @@ Route::get('/api-docs.yaml', function () {
 Route::get('/swagger', function () {
     return view('swagger');
 });
->>>>>>> 269b56a393c5d2334d3788fb228262a712812aa6
