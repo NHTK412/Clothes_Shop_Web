@@ -52,7 +52,7 @@ class CartService
             $cart = Cart::where('user_id', $user->id)->lockForUpdate()->first();
 
             if (! $cart) {
-                $cart = new Cart();
+                $cart = new Cart;
                 $cart->user_id = $user->id;
                 $cart->save();
             }
@@ -76,7 +76,7 @@ class CartService
             $created = false;
 
             if (! $item) {
-                $item = new CartItem();
+                $item = new CartItem;
                 $item->cart_id = $cart->id;
                 $item->product_variant_id = $variant->id;
                 $created = true;
@@ -122,5 +122,16 @@ class CartService
 
             return false;
         });
+    }
+
+    public function getItemCount(User $user): int
+    {
+        $cart = Cart::where('user_id', $user->id)->first();
+
+        if (! $cart) {
+            return 0;
+        }
+
+        return $cart->items()->sum('quantity');
     }
 }

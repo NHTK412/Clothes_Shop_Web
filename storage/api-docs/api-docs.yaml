@@ -673,6 +673,60 @@ paths:
       security:
         -
           bearerAuth: []
+  /api/cart/items/count:
+    get:
+      tags:
+        - 'Giỏ hàng'
+      summary: 'Lấy số lượng sản phẩm trong giỏ hàng hiện tại'
+      description: 'Trả về tổng số lượng sản phẩm trong giỏ hàng của người dùng đã đăng nhập. Nếu người dùng chưa có giỏ hàng, count trả về 0.'
+      operationId: getCurrentCartItemCount
+      responses:
+        200:
+          description: 'Lấy số lượng sản phẩm trong giỏ hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      count:
+                        type: integer
+                        example: 3
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
   /api/categories:
     get:
       tags:

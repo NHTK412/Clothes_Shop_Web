@@ -375,4 +375,58 @@ class CartController extends Controller
             ],
         ], 200);
     }
+
+    #[OA\Get(
+        path: '/api/cart/items/count',
+        operationId: 'getCurrentCartItemCount',
+        summary: 'Lấy số lượng sản phẩm trong giỏ hàng hiện tại',
+        description: 'Trả về tổng số lượng sản phẩm trong giỏ hàng của người dùng đã đăng nhập. Nếu người dùng chưa có giỏ hàng, count trả về 0.',
+        security: [['bearerAuth' => []]],
+        tags: ['Giỏ hàng'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Lấy số lượng sản phẩm trong giỏ hàng thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 200),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, example: null),
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(property: 'count', type: 'integer', example: 3),
+                            ],
+                            type: 'object'
+                        ),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Chưa xác thực',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 401),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+        ]
+    )]
+    public function getCountItem(Request $request)
+    {
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'count' => $this->cartService->getItemCount($request->user()),
+            ],
+        ], 200);
+    }
 }
