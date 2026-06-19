@@ -13,15 +13,25 @@ use OpenApi\Attributes as OA;
 class ProductController extends Controller
 {
     /**
-     * Return a list of products with variants and categories.
-     * Supports optional pagination via `per_page` query param.
+     * Trả về danh sách sản phẩm kèm biến thể và danh mục.
+     * Hỗ trợ phân trang bằng query `per_page`.
      */
     #[OA\Get(
         path: '/api/products',
-        summary: 'List products',
-        tags: ['Products'],
+        summary: 'Danh sách sản phẩm',
+        tags: ['Sản phẩm'],
+        parameters: [
+            new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer'), example: 20),
+            new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer'), example: 1),
+            new OA\Parameter(name: 'sort', in: 'query', required: false, schema: new OA\Schema(type: 'string'), example: '-price'),
+            new OA\Parameter(name: 'category', in: 'query', required: false, schema: new OA\Schema(type: 'string'), example: '1'),
+            new OA\Parameter(name: 'q', in: 'query', required: false, schema: new OA\Schema(type: 'string'), example: 'áo thun'),
+            new OA\Parameter(name: 'min_price', in: 'query', required: false, schema: new OA\Schema(type: 'number'), example: 100000),
+            new OA\Parameter(name: 'max_price', in: 'query', required: false, schema: new OA\Schema(type: 'number'), example: 500000),
+            new OA\Parameter(name: 'in_stock', in: 'query', required: false, schema: new OA\Schema(type: 'boolean'), example: true),
+        ],
         responses: [
-            new OA\Response(response: 200, description: 'Products returned successfully'),
+            new OA\Response(response: 200, description: 'Lấy danh sách sản phẩm thành công'),
         ]
     )]
     public function index(Request $request)
@@ -160,8 +170,20 @@ class ProductController extends Controller
     }
 
     /**
-     * Show a single product by id or slug with related data.
+     * Hiển thị một sản phẩm theo id hoặc slug kèm dữ liệu liên quan.
      */
+    #[OA\Get(
+        path: '/api/products/{id}',
+        summary: 'Chi tiết sản phẩm',
+        tags: ['Sản phẩm'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'), example: '1'),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Lấy thông tin sản phẩm thành công'),
+            new OA\Response(response: 404, description: 'Không tìm thấy sản phẩm'),
+        ]
+    )]
     public function show($id)
     {
         $productQuery = Product::with(['variants.attributeValues', 'categories', 'reviews.user', 'reviews.images']);
@@ -193,8 +215,52 @@ class ProductController extends Controller
     }
 
     /**
-     * Store a new product (admin only).
+     * Tạo sản phẩm mới, chỉ dành cho admin.
      */
+    #[OA\Post(
+        path: '/api/products',
+        summary: 'Tạo sản phẩm',
+        security: [['bearerAuth' => []]],
+        tags: ['Sản phẩm'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['name', 'price'],
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', example: 'Áo thun basic'),
+                    new OA\Property(property: 'description', type: 'string', nullable: true, example: 'Áo thun cotton mềm'),
+                    new OA\Property(property: 'price', type: 'number', example: 199000),
+                    new OA\Property(property: 'discount_price', type: 'number', nullable: true, example: 149000),
+                    new OA\Property(property: 'image', type: 'string', nullable: true, example: 'products/ao-thun.jpg'),
+                    new OA\Property(
+                        property: 'categories',
+                        type: 'array',
+                        items: new OA\Items(type: 'integer'),
+                        example: [1, 2]
+                    ),
+                    new OA\Property(
+                        property: 'variants',
+                        type: 'array',
+                        items: new OA\Items(type: 'object'),
+                        example: [
+                            [
+                                'sku' => 'AO-THUN-DEN-M',
+                                'price' => 199000,
+                                'stock' => 10,
+                                'attribute_value_ids' => [1, 2],
+                            ],
+                        ]
+                    ),
+                ],
+                type: 'object'
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Tạo sản phẩm thành công'),
+            new OA\Response(response: 403, description: 'Chỉ admin được phép thao tác'),
+            new OA\Response(response: 422, description: 'Dữ liệu không hợp lệ'),
+        ]
+    )]
     public function store(Request $request)
     {
         // require admin role
@@ -318,8 +384,56 @@ class ProductController extends Controller
     }
 
     /**
-     * Update a product (admin only).
+     * Cập nhật sản phẩm, chỉ dành cho admin.
      */
+    #[OA\Put(
+        path: '/api/products/{id}',
+        summary: 'Cập nhật sản phẩm',
+        security: [['bearerAuth' => []]],
+        tags: ['Sản phẩm'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'), example: 1),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', example: 'Áo thun basic cập nhật'),
+                    new OA\Property(property: 'description', type: 'string', nullable: true, example: 'Mô tả đã cập nhật'),
+                    new OA\Property(property: 'price', type: 'number', example: 219000),
+                    new OA\Property(property: 'discount_price', type: 'number', nullable: true, example: 179000),
+                    new OA\Property(property: 'image', type: 'string', nullable: true, example: 'products/ao-thun-cap-nhat.jpg'),
+                    new OA\Property(
+                        property: 'categories',
+                        type: 'array',
+                        items: new OA\Items(type: 'integer'),
+                        example: [1, 2]
+                    ),
+                    new OA\Property(
+                        property: 'variants',
+                        type: 'array',
+                        items: new OA\Items(type: 'object'),
+                        example: [
+                            [
+                                'id' => 1,
+                                'sku' => 'AO-THUN-DEN-L',
+                                'price' => 219000,
+                                'stock' => 8,
+                                'attribute_value_ids' => [1, 3],
+                            ],
+                        ]
+                    ),
+                ],
+                type: 'object'
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Cập nhật sản phẩm thành công'),
+            new OA\Response(response: 403, description: 'Chỉ admin được phép thao tác'),
+            new OA\Response(response: 404, description: 'Không tìm thấy sản phẩm'),
+            new OA\Response(response: 422, description: 'Dữ liệu không hợp lệ'),
+        ]
+    )]
     public function update(Request $request, $id)
     {
         // require admin role

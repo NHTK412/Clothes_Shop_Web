@@ -1,19 +1,679 @@
 openapi: 3.0.0
 info:
-  title: 'Clothes Shop API'
-  description: 'API documentation for Clothes Shop Web'
+  title: 'API Cửa hàng quần áo'
+  description: 'Tài liệu API cho hệ thống cửa hàng quần áo'
   version: 1.0.0
 paths:
+  /api/attributes:
+    get:
+      tags:
+        - 'Thuộc tính'
+      summary: 'Danh sách loại thuộc tính'
+      operationId: ce9a20aae3f6b1c28c19bcbdc4c2a74c
+      responses:
+        200:
+          description: 'Lấy danh sách loại thuộc tính thành công'
+    post:
+      tags:
+        - 'Thuộc tính'
+      summary: 'Tạo loại thuộc tính'
+      operationId: a46425fc9f17af1f977c0c1252e72b12
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: 'màu sắc'
+                values:
+                  type: array
+                  items:
+                    type: string
+                  example:
+                    - đen
+                    - trắng
+                    - xanh
+              type: object
+      responses:
+        201:
+          description: 'Tạo loại thuộc tính thành công'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+  '/api/attributes/{id}':
+    get:
+      tags:
+        - 'Thuộc tính'
+      summary: 'Chi tiết loại thuộc tính'
+      operationId: 03026d8d2dd835c03757c25761a026ba
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Lấy thông tin loại thuộc tính thành công'
+        404:
+          description: 'Không tìm thấy loại thuộc tính'
+    put:
+      tags:
+        - 'Thuộc tính'
+      summary: 'Cập nhật loại thuộc tính'
+      operationId: 05c518b2ab1c78dda2c552e3d45fa6e6
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: 'kích cỡ'
+                values:
+                  type: array
+                  items:
+                    type: string
+                  example:
+                    - S
+                    - M
+                    - L
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật loại thuộc tính thành công'
+        404:
+          description: 'Không tìm thấy loại thuộc tính'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+    delete:
+      tags:
+        - 'Thuộc tính'
+      summary: 'Xóa loại thuộc tính'
+      operationId: f2b55a269b833b3ac5c39b93587ba527
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Xóa loại thuộc tính thành công'
+        404:
+          description: 'Không tìm thấy loại thuộc tính'
+  '/api/attributes/{idOrName}/values':
+    get:
+      tags:
+        - 'Thuộc tính'
+      summary: 'Danh sách giá trị của thuộc tính'
+      description: 'Trả về danh sách giá trị theo id hoặc tên loại thuộc tính.'
+      operationId: d39497cc482e5fa30d6a909cc7ec3b6a
+      parameters:
+        -
+          name: idOrName
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 'màu sắc'
+      responses:
+        200:
+          description: 'Lấy danh sách giá trị thuộc tính thành công'
+        404:
+          description: 'Không tìm thấy loại thuộc tính'
+  /api/auth/login:
+    post:
+      tags:
+        - 'Xác thực'
+      summary: 'Đăng nhập'
+      operationId: f2a24de1ee0f140e79f88da7b76924f9
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+              type: object
+      responses:
+        200:
+          description: 'Đăng nhập thành công'
+        401:
+          description: 'Email hoặc mật khẩu không đúng'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+  /api/auth/register:
+    post:
+      tags:
+        - 'Xác thực'
+      summary: 'Đăng ký tài khoản'
+      operationId: da8629dd71264bff37de686f73a4a1c5
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - name
+                - email
+                - phone
+                - password
+                - password_confirmation
+              properties:
+                name:
+                  type: string
+                  example: 'Nguyễn Văn A'
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                phone:
+                  type: string
+                  example: '0901234567'
+                password:
+                  type: string
+                  format: password
+                  example: password123
+                password_confirmation:
+                  type: string
+                  format: password
+                  example: password123
+              type: object
+      responses:
+        201:
+          description: 'Đăng ký thành công'
+        400:
+          description: 'Đăng ký thất bại'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+  /api/auth/send-reset-link:
+    post:
+      tags:
+        - 'Xác thực'
+      summary: 'Gửi liên kết đặt lại mật khẩu'
+      operationId: b01a974361289b869ae688983b2eca50
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+              type: object
+      responses:
+        204:
+          description: 'Đã gửi liên kết đặt lại mật khẩu'
+        404:
+          description: 'Không tìm thấy email'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+  /api/auth/reset-password:
+    post:
+      tags:
+        - 'Xác thực'
+      summary: 'Đặt lại mật khẩu'
+      operationId: 4008ff603d3335a18eb97f285e64325c
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - token
+                - email
+                - password
+                - password_confirmation
+              properties:
+                token:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  example: newpassword123
+                password_confirmation:
+                  type: string
+                  format: password
+                  example: newpassword123
+              type: object
+      responses:
+        204:
+          description: 'Đặt lại mật khẩu thành công'
+        400:
+          description: 'Đặt lại mật khẩu thất bại'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+  /api/categories:
+    get:
+      tags:
+        - 'Danh mục'
+      summary: 'Danh sách danh mục'
+      operationId: 3f5817a34833d0a1f4af4548dd3aeaba
+      parameters:
+        -
+          name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 20
+        -
+          name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Lấy danh sách danh mục thành công'
+    post:
+      tags:
+        - 'Danh mục'
+      summary: 'Tạo danh mục'
+      operationId: 71fcad552bb0eaba9fb191fd8d8dcab0
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: 'Áo thun'
+                parent_id:
+                  type: integer
+                  example: null
+                  nullable: true
+              type: object
+      responses:
+        201:
+          description: 'Tạo danh mục thành công'
+        403:
+          description: 'Chỉ admin được phép thao tác'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  '/api/categories/{id}':
+    get:
+      tags:
+        - 'Danh mục'
+      summary: 'Chi tiết danh mục'
+      operationId: c68e76d323c008827a9e47398b1583de
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Lấy thông tin danh mục thành công'
+        404:
+          description: 'Không tìm thấy danh mục'
+    put:
+      tags:
+        - 'Danh mục'
+      summary: 'Cập nhật danh mục'
+      operationId: 0e686b2748211cc688333ed705dc111f
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                name:
+                  type: string
+                  example: 'Áo sơ mi'
+                parent_id:
+                  type: integer
+                  example: null
+                  nullable: true
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật danh mục thành công'
+        403:
+          description: 'Chỉ admin được phép thao tác'
+        404:
+          description: 'Không tìm thấy danh mục'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+    delete:
+      tags:
+        - 'Danh mục'
+      summary: 'Xóa danh mục'
+      operationId: 4c12e22a7f8c617bd83bfa1fdc05428d
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Xóa danh mục thành công'
+        403:
+          description: 'Chỉ admin được phép thao tác'
+        404:
+          description: 'Không tìm thấy danh mục'
+      security:
+        -
+          bearerAuth: []
+  '/api/auth/reset-password/{token}':
+    get:
+      tags:
+        - 'Xác thực'
+      summary: 'Mở trang đặt lại mật khẩu'
+      operationId: 9da39687f72005a3f1eb426a8e0e2847
+      parameters:
+        -
+          name: token
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
+          example: user@example.com
+      responses:
+        302:
+          description: 'Chuyển hướng đến trang đặt lại mật khẩu ở frontend'
   /api/products:
     get:
       tags:
-        - Products
-      summary: 'List products'
-      description: "Return a list of products with variants and categories.\nSupports optional pagination via `per_page` query param."
+        - 'Sản phẩm'
+      summary: 'Danh sách sản phẩm'
+      description: "Trả về danh sách sản phẩm kèm biến thể và danh mục.\nHỗ trợ phân trang bằng query `per_page`."
       operationId: 1bfaa78d1c2c3848ab8165c5dadcad3e
+      parameters:
+        -
+          name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 20
+        -
+          name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 1
+        -
+          name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+          example: '-price'
+        -
+          name: category
+          in: query
+          required: false
+          schema:
+            type: string
+          example: '1'
+        -
+          name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          example: 'áo thun'
+        -
+          name: min_price
+          in: query
+          required: false
+          schema:
+            type: number
+          example: 100000
+        -
+          name: max_price
+          in: query
+          required: false
+          schema:
+            type: number
+          example: 500000
+        -
+          name: in_stock
+          in: query
+          required: false
+          schema:
+            type: boolean
+          example: true
       responses:
         200:
-          description: 'Products returned successfully'
+          description: 'Lấy danh sách sản phẩm thành công'
+    post:
+      tags:
+        - 'Sản phẩm'
+      summary: 'Tạo sản phẩm'
+      description: 'Tạo sản phẩm mới, chỉ dành cho admin.'
+      operationId: e8185e307706e2cd84bbcf5171e2f09d
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - name
+                - price
+              properties:
+                name:
+                  type: string
+                  example: 'Áo thun basic'
+                description:
+                  type: string
+                  example: 'Áo thun cotton mềm'
+                  nullable: true
+                price:
+                  type: number
+                  example: 199000
+                discount_price:
+                  type: number
+                  example: 149000
+                  nullable: true
+                image:
+                  type: string
+                  example: products/ao-thun.jpg
+                  nullable: true
+                categories:
+                  type: array
+                  items:
+                    type: integer
+                  example:
+                    - 1
+                    - 2
+                variants:
+                  type: array
+                  items:
+                    type: object
+                  example:
+                    -
+                      sku: AO-THUN-DEN-M
+                      price: 199000
+                      stock: 10
+                      attribute_value_ids:
+                        - 1
+                        - 2
+              type: object
+      responses:
+        201:
+          description: 'Tạo sản phẩm thành công'
+        403:
+          description: 'Chỉ admin được phép thao tác'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  '/api/products/{id}':
+    get:
+      tags:
+        - 'Sản phẩm'
+      summary: 'Chi tiết sản phẩm'
+      description: 'Hiển thị một sản phẩm theo id hoặc slug kèm dữ liệu liên quan.'
+      operationId: 7ab21ddb713501f3d4c2914892c02a21
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: '1'
+      responses:
+        200:
+          description: 'Lấy thông tin sản phẩm thành công'
+        404:
+          description: 'Không tìm thấy sản phẩm'
+    put:
+      tags:
+        - 'Sản phẩm'
+      summary: 'Cập nhật sản phẩm'
+      description: 'Cập nhật sản phẩm, chỉ dành cho admin.'
+      operationId: 6a7e11900844cd85cff66e662b82bd4c
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                name:
+                  type: string
+                  example: 'Áo thun basic cập nhật'
+                description:
+                  type: string
+                  example: 'Mô tả đã cập nhật'
+                  nullable: true
+                price:
+                  type: number
+                  example: 219000
+                discount_price:
+                  type: number
+                  example: 179000
+                  nullable: true
+                image:
+                  type: string
+                  example: products/ao-thun-cap-nhat.jpg
+                  nullable: true
+                categories:
+                  type: array
+                  items:
+                    type: integer
+                  example:
+                    - 1
+                    - 2
+                variants:
+                  type: array
+                  items:
+                    type: object
+                  example:
+                    -
+                      id: 1
+                      sku: AO-THUN-DEN-L
+                      price: 219000
+                      stock: 8
+                      attribute_value_ids:
+                        - 1
+                        - 3
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật sản phẩm thành công'
+        403:
+          description: 'Chỉ admin được phép thao tác'
+        404:
+          description: 'Không tìm thấy sản phẩm'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      description: 'Nhập JWT token theo dạng Bearer token.'
+      bearerFormat: JWT
+      scheme: bearer
 tags:
-  - name: Products
-    description: Products
+  - name: 'Thuộc tính'
+    description: 'Thuộc tính'
+  - name: 'Xác thực'
+    description: 'Xác thực'
+  - name: 'Danh mục'
+    description: 'Danh mục'
+  - name: 'Sản phẩm'
+    description: 'Sản phẩm'

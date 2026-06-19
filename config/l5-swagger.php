@@ -5,7 +5,7 @@ return [
     'documentations' => [
         'default' => [
             'api' => [
-                'title' => 'L5 Swagger UI',
+                'title' => 'Tài liệu API Cửa hàng quần áo',
             ],
 
             'routes' => [
