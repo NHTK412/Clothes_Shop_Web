@@ -4,6 +4,151 @@ info:
   description: 'Tài liệu API cho hệ thống cửa hàng quần áo'
   version: 1.0.0
 paths:
+  /api/addresses:
+    get:
+      tags:
+        - 'Địa chỉ'
+      summary: 'Lấy danh sách địa chỉ của người dùng'
+      operationId: getUserAddresses
+      responses:
+        200:
+          description: 'Lấy danh sách địa chỉ thành công'
+        401:
+          description: 'Chưa xác thực'
+      security:
+        -
+          bearerAuth: []
+    post:
+      tags:
+        - 'Địa chỉ'
+      summary: 'Thêm địa chỉ mới'
+      operationId: createUserAddress
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - district_id
+                - district_name
+                - ward_code
+                - ward_name
+                - province_id
+                - province_name
+                - specific_address
+                - full_name
+                - phone
+              properties:
+                address_code:
+                  type: string
+                  example: ADDR-HOME
+                  nullable: true
+                district_id:
+                  type: integer
+                  example: 3695
+                district_name:
+                  type: string
+                  example: 'Thành Phố Thủ Đức'
+                ward_code:
+                  type: string
+                  example: '90768'
+                ward_name:
+                  type: string
+                  example: 'Phường An Khánh'
+                province_id:
+                  type: integer
+                  example: 202
+                province_name:
+                  type: string
+                  example: 'Hồ Chí Minh'
+                specific_address:
+                  type: string
+                  example: '12 Nguyễn Văn A'
+                full_name:
+                  type: string
+                  example: 'Nguyễn Văn A'
+                phone:
+                  type: string
+                  example: '0901234567'
+                is_default:
+                  type: boolean
+                  example: true
+              type: object
+      responses:
+        201:
+          description: 'Thêm địa chỉ thành công'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  '/api/addresses/{address}':
+    put:
+      tags:
+        - 'Địa chỉ'
+      summary: 'Cập nhật địa chỉ'
+      operationId: updateUserAddress
+      parameters:
+        -
+          name: address
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Cập nhật địa chỉ thành công'
+        404:
+          description: 'Không tìm thấy địa chỉ'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+    delete:
+      tags:
+        - 'Địa chỉ'
+      summary: 'Xóa địa chỉ'
+      operationId: deleteUserAddress
+      parameters:
+        -
+          name: address
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Xóa địa chỉ thành công'
+        404:
+          description: 'Không tìm thấy địa chỉ'
+      security:
+        -
+          bearerAuth: []
+  '/api/addresses/{address}/default':
+    put:
+      tags:
+        - 'Địa chỉ'
+      summary: 'Đặt địa chỉ làm mặc định'
+      operationId: setDefaultUserAddress
+      parameters:
+        -
+          name: address
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Đặt địa chỉ mặc định thành công'
+        404:
+          description: 'Không tìm thấy địa chỉ'
+      security:
+        -
+          bearerAuth: []
   /api/attributes:
     get:
       tags:
@@ -1255,6 +1400,8 @@ components:
       bearerFormat: JWT
       scheme: bearer
 tags:
+  - name: 'Địa chỉ'
+    description: 'Địa chỉ'
   - name: 'Thuộc tính'
     description: 'Thuộc tính'
   - name: 'Xác thực'

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AttributeTypeController;
+use App\Http\Controllers\AddressController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
@@ -51,6 +52,12 @@ Route::prefix('ghn')->group(function () {
 
 Route::middleware('auth:api')->group(function () {
     Route::get('/ghn/shipping-fee', [GhnController::class, 'shippingFee'])->name('ghn.shipping-fee');
+
+    Route::get('/addresses', [AddressController::class, 'index'])->name('addresses.index');
+    Route::post('/addresses', [AddressController::class, 'store'])->name('addresses.store');
+    Route::put('/addresses/{address}', [AddressController::class, 'update'])->name('addresses.update');
+    Route::delete('/addresses/{address}', [AddressController::class, 'destroy'])->name('addresses.destroy');
+    Route::put('/addresses/{address}/default', [AddressController::class, 'setDefault'])->name('addresses.default');
 
     Route::get('/cart/items', [CartController::class, 'getItems'])->name('cart.items.index');
     Route::get('/cart/items/count', [CartController::class, 'getCountItem'])->name('cart.items.count');
