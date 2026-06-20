@@ -15,13 +15,13 @@ return new class extends Migration
             $table->id();
             $table->enum('method', [
                 'COD',
-                'VNPAY'
+                'VNPAY',
             ]);
             $table->enum('status', [
                 'pending',
                 'completed',
                 'failed',
-                'refunded'
+                'refunded',
             ])->default('pending');
             $table->string('transaction_id')->nullable();
             $table->json('payment_details')->nullable();

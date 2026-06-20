@@ -60,7 +60,9 @@ class GhnController extends Controller
     )]
     public function provinces()
     {
-        $response = $this->get('/shiip/public-api/master-data/province');
+        // $response = $this->get('/shiip/public-api/master-data/province');
+        // https://dev-online-gateway.ghn.vn/shiip/public-api/v3/master-data/province/all
+        $response = $this->get('/shiip/public-api/v3/master-data/province/all');
 
         if (! $response instanceof Response) {
             return $response;
@@ -68,9 +70,9 @@ class GhnController extends Controller
 
         return $this->success($this->data($response)->map(function ($province) {
             return [
-                'province_id' => $province['ProvinceID'] ?? null,
-                'province_name' => $province['ProvinceName'] ?? null,
-                'code' => $province['Code'] ?? null,
+                'province_id' => $province['_id'] ?? null,
+                'province_name' => $province['name'] ?? null,
+                'code' => $province['_id'] ?? null,
             ];
         })->values()->toArray());
     }
@@ -120,7 +122,9 @@ class GhnController extends Controller
         description: 'Lấy danh sách phường/xã theo mã quận/huyện và chỉ trả về các trường cần thiết.',
         tags: ['GHN'],
         parameters: [
-            new OA\Parameter(name: 'district_id', in: 'query', required: true, schema: new OA\Schema(type: 'integer'), example: 3695),
+            // new OA\Parameter(name: 'district_id', in: 'query', required: true, schema: new OA\Schema(type: 'integer'), example: 3695),
+            new OA\Parameter(name: 'province_id', in: 'query', required: true, schema: new OA\Schema(type: 'integer'), example: 3695),
+
         ],
         responses: [
             new OA\Response(response: 200, description: 'Lấy danh sách phường/xã thành công'),
@@ -130,11 +134,11 @@ class GhnController extends Controller
     public function wards(Request $request)
     {
         $validated = $request->validate([
-            'district_id' => 'required|integer',
+            'province_id' => 'required|integer',
         ]);
 
-        $response = $this->get('/shiip/public-api/master-data/ward', [
-            'district_id' => $validated['district_id'],
+        $response = $this->get('/shiip/public-api/v3/master-data/ward/all-by-province-id', [
+            'province_id' => $validated['province_id'],
         ]);
 
         if (! $response instanceof Response) {
@@ -143,9 +147,9 @@ class GhnController extends Controller
 
         return $this->success($this->data($response)->map(function ($ward) {
             return [
-                'ward_code' => $ward['WardCode'] ?? null,
-                'district_id' => $ward['DistrictID'] ?? null,
-                'ward_name' => $ward['WardName'] ?? null,
+                'ward_code' => $ward['_id'] ?? null,
+                'district_id' => $ward['parent_id'] ?? null,
+                'ward_name' => $ward['name'] ?? null,
             ];
         })->values()->toArray());
     }
@@ -158,8 +162,8 @@ class GhnController extends Controller
         security: [['bearerAuth' => []]],
         tags: ['GHN'],
         parameters: [
-            new OA\Parameter(name: 'to_ward_code', in: 'query', required: true, schema: new OA\Schema(type: 'string'), example: '90749'),
-            new OA\Parameter(name: 'to_district_id', in: 'query', required: true, schema: new OA\Schema(type: 'integer'), example: 3695),
+            new OA\Parameter(name: 'to_ward_id_v2', in: 'query', required: true, schema: new OA\Schema(type: 'integer'), example: 1003544),
+            new OA\Parameter(name: 'to_district_id', in: 'query', required: true, schema: new OA\Schema(type: 'integer'), example: 1000001),
         ],
         responses: [
             new OA\Response(
@@ -188,7 +192,7 @@ class GhnController extends Controller
     public function shippingFee(Request $request)
     {
         $validated = $request->validate([
-            'to_ward_code' => 'required|string',
+            'to_ward_id_v2' => 'required|integer',
             'to_district_id' => 'required|integer',
         ]);
 
@@ -200,7 +204,8 @@ class GhnController extends Controller
 
         $payload = [
             'service_type_id' => (int) config('services.ghn.default_service_type_id'),
-            'to_ward_code' => $validated['to_ward_code'],
+            'is_new_to_address' => true,
+            'to_ward_id_v2' => (int) $validated['to_ward_id_v2'],
             'to_district_id' => (int) $validated['to_district_id'],
             'weight' => (int) config('services.ghn.default_weight'),
             'length' => (int) config('services.ghn.default_length'),

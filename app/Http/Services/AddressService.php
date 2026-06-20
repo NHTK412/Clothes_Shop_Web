@@ -31,11 +31,6 @@ class AddressService
             $address->is_default = $shouldBeDefault;
             $address->save();
 
-            if (! $address->address_code) {
-                $address->address_code = 'ADDR-'.$address->id;
-                $address->save();
-            }
-
             return $address;
         });
     }
@@ -44,7 +39,7 @@ class AddressService
     {
         return DB::transaction(function () use ($user, $addressId, $data) {
             $address = $this->findForUser($user, $addressId);
-            $shouldBeDefault = (bool) ($data['is_default'] ?? false);
+            $shouldBeDefault = (bool) ($data['is_default'] ?? false); 
 
             if ($shouldBeDefault) {
                 $this->clearDefault($user);

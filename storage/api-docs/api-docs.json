@@ -39,8 +39,6 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "district_id",
-                                    "district_name",
                                     "ward_code",
                                     "ward_name",
                                     "province_id",
@@ -50,19 +48,6 @@
                                     "phone"
                                 ],
                                 "properties": {
-                                    "address_code": {
-                                        "type": "string",
-                                        "example": "ADDR-HOME",
-                                        "nullable": true
-                                    },
-                                    "district_id": {
-                                        "type": "integer",
-                                        "example": 3695
-                                    },
-                                    "district_name": {
-                                        "type": "string",
-                                        "example": "Thành Phố Thủ Đức"
-                                    },
                                     "ward_code": {
                                         "type": "string",
                                         "example": "90768"
@@ -1573,7 +1558,7 @@
                 "operationId": "getGhnWards",
                 "parameters": [
                     {
-                        "name": "district_id",
+                        "name": "province_id",
                         "in": "query",
                         "required": true,
                         "schema": {
@@ -1602,13 +1587,13 @@
                 "operationId": "calculateGhnShippingFee",
                 "parameters": [
                     {
-                        "name": "to_ward_code",
+                        "name": "to_ward_id_v2",
                         "in": "query",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "type": "integer"
                         },
-                        "example": "90749"
+                        "example": 1003544
                     },
                     {
                         "name": "to_district_id",
@@ -1617,7 +1602,7 @@
                         "schema": {
                             "type": "integer"
                         },
-                        "example": 3695
+                        "example": 1000001
                     }
                 ],
                 "responses": {

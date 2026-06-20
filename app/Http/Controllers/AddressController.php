@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Services\AddressService;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
 class AddressController extends Controller
@@ -41,11 +40,8 @@ class AddressController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['district_id', 'district_name', 'ward_code', 'ward_name', 'province_id', 'province_name', 'specific_address', 'full_name', 'phone'],
+                required: ['ward_code', 'ward_name', 'province_id', 'province_name', 'specific_address', 'full_name', 'phone'],
                 properties: [
-                    new OA\Property(property: 'address_code', type: 'string', nullable: true, example: 'ADDR-HOME'),
-                    new OA\Property(property: 'district_id', type: 'integer', example: 3695),
-                    new OA\Property(property: 'district_name', type: 'string', example: 'Thành Phố Thủ Đức'),
                     new OA\Property(property: 'ward_code', type: 'string', example: '90768'),
                     new OA\Property(property: 'ward_name', type: 'string', example: 'Phường An Khánh'),
                     new OA\Property(property: 'province_id', type: 'integer', example: 202),
@@ -144,14 +140,6 @@ class AddressController extends Controller
         $required = $isUpdate ? 'sometimes|required' : 'required';
 
         return $request->validate([
-            'address_code' => [
-                'nullable',
-                'string',
-                'max:100',
-                Rule::unique('addresses', 'address_code')->ignore($addressId),
-            ],
-            'district_id' => "{$required}|integer",
-            'district_name' => "{$required}|string|max:255",
             'ward_code' => "{$required}|string|max:50",
             'ward_name' => "{$required}|string|max:255",
             'province_id' => "{$required}|integer",

@@ -41,10 +41,10 @@ return [
         'shop_id' => env('GHN_SHOP_ID'),
         'verify_ssl' => env('GHN_VERIFY_SSL', true),
         'default_service_type_id' => env('GHN_DEFAULT_SERVICE_TYPE_ID', 2),
-        'default_weight' => env('GHN_DEFAULT_WEIGHT', 500),
-        'default_length' => env('GHN_DEFAULT_LENGTH', 30),
-        'default_width' => env('GHN_DEFAULT_WIDTH', 25),
-        'default_height' => env('GHN_DEFAULT_HEIGHT', 5),
+        'default_weight' => env('GHN_DEFAULT_WEIGHT', 300),
+        'default_length' => env('GHN_DEFAULT_LENGTH', 25),
+        'default_width' => env('GHN_DEFAULT_WIDTH', 20),
+        'default_height' => env('GHN_DEFAULT_HEIGHT', 3),
     ],
 
 ];
