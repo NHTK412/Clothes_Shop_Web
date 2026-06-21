@@ -19,6 +19,7 @@ class Order extends Model
         'specific_address',
         'full_name',
         'phone',
+        'ghn_order_code',
     ];
 
     public function user()

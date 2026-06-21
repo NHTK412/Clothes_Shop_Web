@@ -36,9 +36,94 @@ class OrderController extends Controller
             )
         ),
         responses: [
-            new OA\Response(response: 201, description: 'Tạo đơn hàng thành công'),
-            new OA\Response(response: 401, description: 'Chưa xác thực'),
-            new OA\Response(response: 422, description: 'Dữ liệu không hợp lệ hoặc giỏ hàng trống'),
+            new OA\Response(
+                response: 201,
+                description: 'Tạo đơn hàng thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 201),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, example: null),
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(
+                                    property: 'items',
+                                    properties: [
+                                        new OA\Property(property: 'id', type: 'integer', example: 1),
+                                        new OA\Property(property: 'user_id', type: 'integer', example: 1),
+                                        new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 398000),
+                                        new OA\Property(property: 'discount_price', type: 'number', format: 'float', example: 100000),
+                                        new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 298000),
+                                        new OA\Property(property: 'status', type: 'string', example: 'PENDING_PAYMENT'),
+                                        new OA\Property(property: 'ghn_order_code', type: 'string', nullable: true, example: 'LJXX123456'),
+                                        new OA\Property(property: 'ward_code', type: 'string', example: '1003544'),
+                                        new OA\Property(property: 'ward_name', type: 'string', example: 'Phường An Khánh'),
+                                        new OA\Property(property: 'province_id', type: 'integer', example: 202),
+                                        new OA\Property(property: 'province_name', type: 'string', example: 'Hồ Chí Minh'),
+                                        new OA\Property(property: 'specific_address', type: 'string', example: '12 Nguyễn Văn A'),
+                                        new OA\Property(property: 'full_name', type: 'string', example: 'Nguyễn Văn A'),
+                                        new OA\Property(property: 'phone', type: 'string', example: '0901234567'),
+                                        new OA\Property(
+                                            property: 'order_details',
+                                            type: 'array',
+                                            items: new OA\Items(
+                                                properties: [
+                                                    new OA\Property(property: 'id', type: 'integer', example: 1),
+                                                    new OA\Property(property: 'product_variant_id', type: 'integer', example: 1),
+                                                    new OA\Property(property: 'quantity', type: 'integer', example: 2),
+                                                    new OA\Property(property: 'unit_price', type: 'number', format: 'float', example: 199000),
+                                                    new OA\Property(property: 'unit_discount_price', type: 'number', format: 'float', nullable: true, example: 50000),
+                                                ],
+                                                type: 'object'
+                                            )
+                                        ),
+                                        new OA\Property(
+                                            property: 'payment',
+                                            properties: [
+                                                new OA\Property(property: 'id', type: 'integer', example: 1),
+                                                new OA\Property(property: 'method', type: 'string', example: 'COD'),
+                                                new OA\Property(property: 'status', type: 'string', example: 'UNPAID'),
+                                            ],
+                                            type: 'object'
+                                        ),
+                                    ],
+                                    type: 'object'
+                                ),
+                                new OA\Property(property: 'pagination', type: 'object', nullable: true, example: null),
+                            ],
+                            type: 'object'
+                        ),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Chưa xác thực',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 401),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Dữ liệu không hợp lệ hoặc giỏ hàng trống',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 422),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'The given data was invalid.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
         ]
     )]
     public function store(Request $request)

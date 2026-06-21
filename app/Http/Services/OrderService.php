@@ -7,6 +7,7 @@ use App\Models\Cart;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 
 class OrderService
@@ -91,6 +92,59 @@ class OrderService
             ]);
 
             $cart->items()->delete();
+
+            // Tạo đơn hàng ghn
+            if (! config('services.ghn.shop_id')) {
+                return $this->error('GHN shop id is not configured.', 500);
+            }
+            try {
+                $token = config('services.ghn.token');
+
+                if (! $token) {
+                    throw new \RuntimeException('GHN token is not configured.');
+                }
+
+                $payload = [
+                    'payment_type_id' => 1,
+                    'required_note' => 'KHONGCHOXEMHANG',
+                    'to_name' => $address->full_name,
+                    'to_phone' => $address->phone,
+                    'is_new_to_address' => true,
+                    'to_address' => $address->specific_address,
+                    'to_ward_code' => $address->ward_code,
+                    'to_province_name' => $address->province_name,
+                    'cod_amount' => $paymentMethod === 'COD' ? $finalPrice : 0,
+                    'content' => "Giao hàng cho đơn hàng #{$order->id}",
+                    'service_type_id' => 2,
+                    'length' => 25,
+                    'width' => 20,
+                    'height' => 3,
+                    'weight' => 300,
+                ];
+
+                $response = Http::baseUrl(config('services.ghn.base_url'))
+                    ->withHeaders(['Token' => $token])
+                    ->acceptJson()
+                    ->withOptions([
+                        'verify' => config('services.ghn.verify_ssl'),
+                    ])
+                    ->timeout(15)
+                    ->post('/shiip/public-api/v2/shipping-order/create', $payload);
+
+                $body = $response->json();
+                if (! $response->successful() || ! isset($body['data']['order_code'])) {
+                    throw new \RuntimeException('Failed to create order with GHN: '.($body['message'] ?? 'Unknown error'));
+                }
+
+                $orderCode = $body['data']['order_code'];
+                $order->ghn_order_code = $orderCode;
+                $order->save();
+
+            } catch (\Exception $e) {
+                throw ValidationException::withMessages([
+                    'ghn' => 'Failed to create order with GHN: '.$e->getMessage(),
+                ]);
+            }
 
             return $order->load(['orderDetails.productVariant.product', 'payment']);
         });

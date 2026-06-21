@@ -25,6 +25,7 @@ return new class extends Migration
             $table->string('specific_address');
             $table->string('full_name');
             $table->string('phone', 20);
+            $table->string('ghn_order_code')->nullable();
             $table->timestamps();
         });
     }
