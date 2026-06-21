@@ -1159,6 +1159,45 @@ paths:
       responses:
         302:
           description: 'Chuyển hướng đến trang đặt lại mật khẩu ở frontend'
+  /api/order:
+    post:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Tạo đơn hàng từ giỏ hàng'
+      description: 'Tạo đơn hàng từ giỏ hàng hiện tại của người dùng. Phần coupon/gift code chưa được áp dụng. Giá sản phẩm được tính theo công thức: giá gốc - giá giảm giá.'
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - address_id
+              properties:
+                address_id:
+                  type: integer
+                  example: 1
+                gift_code:
+                  type: string
+                  example: null
+                  nullable: true
+                payment_method:
+                  type: string
+                  example: COD
+                  enum:
+                    - COD
+                    - VNPAY
+              type: object
+      responses:
+        201:
+          description: 'Tạo đơn hàng thành công'
+        401:
+          description: 'Chưa xác thực'
+        422:
+          description: 'Dữ liệu không hợp lệ hoặc giỏ hàng trống'
+      security:
+        -
+          bearerAuth: []
   /api/products:
     get:
       tags:
@@ -1400,5 +1439,7 @@ tags:
     description: 'Danh mục'
   - name: GHN
     description: GHN
+  - name: 'Đơn hàng'
+    description: 'Đơn hàng'
   - name: 'Sản phẩm'
     description: 'Sản phẩm'

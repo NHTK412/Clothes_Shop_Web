@@ -16,8 +16,15 @@ return new class extends Migration
             $table->decimal('total_price', 10, 2);
             $table->decimal('discount_price', 10, 2)->nullable();
             $table->decimal('final_price', 10, 2);
-            $table->enum('status', ['pending', 'processing', 'completed', 'cancelled'])->default('pending');
+            $table->enum('status', ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'])->default('PENDING_PAYMENT');
             $table->foreignId('user_id')->constrained();
+            $table->string('ward_code');
+            $table->string('ward_name');
+            $table->unsignedInteger('province_id');
+            $table->string('province_name');
+            $table->string('specific_address');
+            $table->string('full_name');
+            $table->string('phone', 20);
             $table->timestamps();
         });
     }

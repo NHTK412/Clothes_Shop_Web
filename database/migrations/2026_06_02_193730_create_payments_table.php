@@ -17,12 +17,8 @@ return new class extends Migration
                 'COD',
                 'VNPAY',
             ]);
-            $table->enum('status', [
-                'pending',
-                'completed',
-                'failed',
-                'refunded',
-            ])->default('pending');
+            $table->enum('status', ['UNPAID', 'PAID', 'REFUNDED',
+            ])->default('UNPAID');
             $table->string('transaction_id')->nullable();
             $table->json('payment_details')->nullable();
             $table->foreignId('order_id')->constrained()->cascadeOnDelete();

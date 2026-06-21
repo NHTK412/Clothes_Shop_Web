@@ -64,3 +64,9 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/cart/items', [CartController::class, 'addItem'])->name('cart.items.add');
     Route::put('/cart/items/{cartItem}', [CartController::class, 'updateItem'])->name('cart.items.update');
 });
+
+
+Route::middleware('auth:api')->prefix('order')->group(function () {
+    Route::post('/', [\App\Http\Controllers\OrderController::class, 'store'])->name('order.store');
+});
+
