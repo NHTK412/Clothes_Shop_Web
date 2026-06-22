@@ -11,6 +11,8 @@ class Order extends Model
         'total_price',
         'discount_price',
         'final_price',
+        'ship_price',
+        'discount_ship_price',
         'status',
         'ward_code',
         'ward_name',

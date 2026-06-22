@@ -16,6 +16,8 @@ return new class extends Migration
             $table->decimal('total_price', 10, 2);
             $table->decimal('discount_price', 10, 2)->nullable();
             $table->decimal('final_price', 10, 2);
+            $table->decimal('ship_price', 10, 2)->nullable();
+            $table->decimal('discount_ship_price', 10, 2);
             $table->enum('status', ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'])->default('PENDING_PAYMENT');
             $table->foreignId('user_id')->constrained();
             $table->string('ward_code');

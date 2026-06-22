@@ -2693,6 +2693,317 @@
                     }
                 ]
             }
+        },
+        "/api/vnpay/payment-url": {
+            "post": {
+                "tags": [
+                    "VNPAY"
+                ],
+                "summary": "Tạo URL thanh toán VNPAY",
+                "description": "Tạo URL thanh toán VNPAY cho một đơn hàng của người dùng đang đăng nhập. Frontend dùng payment_url để chuyển người dùng sang cổng thanh toán VNPAY.",
+                "operationId": "createVnpayPaymentUrl",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "order_id"
+                                ],
+                                "properties": {
+                                    "order_id": {
+                                        "description": "ID đơn hàng cần thanh toán.",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "bank_code": {
+                                        "description": "Mã phương thức thanh toán. Không truyền để người dùng tự chọn trên VNPAY.",
+                                        "type": "string",
+                                        "example": "VNBANK",
+                                        "nullable": true,
+                                        "enum": [
+                                            "VNPAYQR",
+                                            "VNBANK",
+                                            "INTCARD"
+                                        ]
+                                    },
+                                    "locale": {
+                                        "description": "Ngôn ngữ giao diện VNPAY.",
+                                        "type": "string",
+                                        "example": "vn",
+                                        "nullable": true,
+                                        "enum": [
+                                            "vn",
+                                            "en"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Tạo URL thanh toán thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "payment_url": {
+                                                    "type": "string",
+                                                    "example": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=29800000&vnp_Command=pay&vnp_CreateDate=20260623120000&vnp_CurrCode=VND&vnp_IpAddr=127.0.0.1&vnp_Locale=vn&vnp_OrderInfo=Thanh+toan+don+hang+1&vnp_OrderType=other&vnp_ReturnUrl=https%3A%2F%2Fdomain.vn%2Fvnpay-return&vnp_TmnCode=DEMOV210&vnp_TxnRef=120260623120000&vnp_Version=2.1.0&vnp_SecureHash=..."
+                                                },
+                                                "txn_ref": {
+                                                    "type": "string",
+                                                    "example": "120260623120000"
+                                                },
+                                                "amount": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 298000
+                                                },
+                                                "expire_at": {
+                                                    "type": "string",
+                                                    "example": "20260623121500"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Chưa xác thực",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 401
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Không tìm thấy đơn hàng hoặc đơn hàng không thuộc người dùng hiện tại",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 404
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Dữ liệu không hợp lệ hoặc cấu hình VNPAY chưa đầy đủ",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 422
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The given data was invalid."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/vnpay/return": {
+            "get": {
+                "tags": [
+                    "VNPAY"
+                ],
+                "summary": "Xử lý kết quả thanh toán VNPAY",
+                "description": "Endpoint nhận redirect từ VNPAY sau khi người dùng thanh toán. Hệ thống xác thực chữ ký, nếu giao dịch thành công thì cập nhật payment thành PAID và order thành CONFIRMED.",
+                "operationId": "handleVnpayReturn",
+                "parameters": [
+                    {
+                        "name": "vnp_TxnRef",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "120260623120000"
+                    },
+                    {
+                        "name": "vnp_Amount",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 29800000
+                    },
+                    {
+                        "name": "vnp_ResponseCode",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "00"
+                    },
+                    {
+                        "name": "vnp_TransactionStatus",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "00"
+                    },
+                    {
+                        "name": "vnp_SecureHash",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "secure_hash_from_vnpay"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Xử lý kết quả thanh toán thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "order_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "order_status": {
+                                                    "type": "string",
+                                                    "example": "CONFIRMED"
+                                                },
+                                                "payment_status": {
+                                                    "type": "string",
+                                                    "example": "PAID"
+                                                },
+                                                "transaction_id": {
+                                                    "type": "string",
+                                                    "example": "120260623120000"
+                                                },
+                                                "response_code": {
+                                                    "type": "string",
+                                                    "example": "00"
+                                                },
+                                                "transaction_status": {
+                                                    "type": "string",
+                                                    "example": "00"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Không tìm thấy giao dịch thanh toán"
+                    },
+                    "422": {
+                        "description": "Chữ ký không hợp lệ hoặc dữ liệu không khớp"
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -2737,6 +3048,10 @@
         {
             "name": "Sản phẩm",
             "description": "Sản phẩm"
+        },
+        {
+            "name": "VNPAY",
+            "description": "VNPAY"
         }
     ]
 }

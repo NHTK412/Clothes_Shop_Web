@@ -7,6 +7,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\GhnController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\VnpayController;
 use Illuminate\Support\Facades\Route;
 
 // Route::post('/login', [AuthController::class, 'authenticateApi'])->name('login.authenticate');
@@ -50,6 +51,8 @@ Route::prefix('ghn')->group(function () {
     Route::get('/wards', [GhnController::class, 'wards'])->name('ghn.wards');
 });
 
+Route::get('/vnpay/return', [VnpayController::class, 'return'])->name('vnpay.return');
+
 Route::middleware('auth:api')->group(function () {
     Route::get('/ghn/shipping-fee', [GhnController::class, 'shippingFee'])->name('ghn.shipping-fee');
 
@@ -63,6 +66,8 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/cart/items/count', [CartController::class, 'getCountItem'])->name('cart.items.count');
     Route::post('/cart/items', [CartController::class, 'addItem'])->name('cart.items.add');
     Route::put('/cart/items/{cartItem}', [CartController::class, 'updateItem'])->name('cart.items.update');
+
+    Route::post('/vnpay/payment-url', [VnpayController::class, 'createPaymentUrl'])->name('vnpay.payment-url');
 });
 
 

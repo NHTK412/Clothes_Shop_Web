@@ -31,9 +31,10 @@ class OrderService
             }
 
             $totalPrice = 0;
-            $totalDiscount = 0;
-            $finalPrice = 0;
+            $productDiscount = 0;
+            $productFinalPrice = 0;
             $orderDetails = [];
+            $shippingItems = [];
 
             foreach ($cart->items as $item) {
                 $variant = $item->productVariant()->lockForUpdate()->first();
@@ -55,8 +56,8 @@ class OrderService
                 $unitFinalPrice = max($unitPrice - $unitDiscount, 0);
 
                 $totalPrice += $unitPrice * $item->quantity;
-                $totalDiscount += $unitDiscount * $item->quantity;
-                $finalPrice += $unitFinalPrice * $item->quantity;
+                $productDiscount += $unitDiscount * $item->quantity;
+                $productFinalPrice += $unitFinalPrice * $item->quantity;
 
                 $orderDetails[] = [
                     'product_variant_id' => $item->product_variant_id,
@@ -65,16 +66,31 @@ class OrderService
                     'unit_discount_price' => $unitDiscount,
                 ];
 
+                $shippingItems[] = [
+                    'name' => $variant->product?->name ?? 'San pham quan ao',
+                    'code' => $variant->sku ?? (string) $item->product_variant_id,
+                    'quantity' => $item->quantity,
+                ];
+
                 $variant->stock -= $item->quantity;
                 $variant->save();
             }
 
+            $orderStatus = $paymentMethod === 'COD' ? 'CONFIRMED' : 'PENDING_PAYMENT';
+            $shipPrice = $this->calculateShippingFee($address, $shippingItems);
+            $discountPrice = 0;
+            $discountShipPrice = 0;
+            $unitPrice = $productFinalPrice;
+            $finalPrice = $productFinalPrice + $shipPrice - $discountPrice - $discountShipPrice;
+
             $order = Order::create([
                 'user_id' => $user->id,
                 'total_price' => $totalPrice,
-                'discount_price' => $totalDiscount,
+                'discount_price' => $discountPrice,
                 'final_price' => $finalPrice,
-                'status' => 'PENDING_PAYMENT',
+                'ship_price' => $shipPrice,
+                'discount_ship_price' => $discountShipPrice,
+                'status' => $orderStatus,
                 'ward_code' => $address->ward_code,
                 'ward_name' => $address->ward_name,
                 'province_id' => $address->province_id,
@@ -148,6 +164,95 @@ class OrderService
 
             return $order->load(['orderDetails.productVariant.product', 'payment']);
         });
+    }
+
+    private function calculateShippingFee(Address $address, array $items): float
+    {
+        if (! config('services.ghn.shop_id')) {
+            throw ValidationException::withMessages([
+                'ghn' => 'GHN shop id is not configured.',
+            ]);
+        }
+
+        $token = config('services.ghn.token');
+
+        if (! $token) {
+            throw ValidationException::withMessages([
+                'ghn' => 'GHN token is not configured.',
+            ]);
+        }
+
+        $districtId = $this->resolveGhnDistrictId($address);
+
+        $payload = [
+            'service_type_id' => (int) config('services.ghn.default_service_type_id'),
+            'is_new_to_address' => true,
+            'to_ward_id_v2' => (int) $address->ward_code,
+            'to_district_id' => $districtId,
+            'weight' => (int) config('services.ghn.default_weight'),
+            'length' => (int) config('services.ghn.default_length'),
+            'width' => (int) config('services.ghn.default_width'),
+            'height' => (int) config('services.ghn.default_height'),
+            'items' => $items,
+        ];
+
+        $response = Http::baseUrl(config('services.ghn.base_url'))
+            ->withHeaders([
+                'Token' => $token,
+                'ShopId' => config('services.ghn.shop_id'),
+            ])
+            ->acceptJson()
+            ->withOptions([
+                'verify' => config('services.ghn.verify_ssl'),
+            ])
+            ->timeout(15)
+            ->post('/shiip/public-api/v2/shipping-order/fee', $payload);
+
+        $body = $response->json();
+
+        if (! $response->successful() || ($body['code'] ?? null) !== 200 || ! isset($body['data']['total'])) {
+            throw ValidationException::withMessages([
+                'ghn' => 'Failed to calculate shipping fee with GHN: '.($body['message'] ?? 'Unknown error'),
+            ]);
+        }
+
+        return (float) $body['data']['total'];
+    }
+
+    private function resolveGhnDistrictId(Address $address): int
+    {
+        $token = config('services.ghn.token');
+
+        $response = Http::baseUrl(config('services.ghn.base_url'))
+            ->withHeaders(['Token' => $token])
+            ->acceptJson()
+            ->withOptions([
+                'verify' => config('services.ghn.verify_ssl'),
+            ])
+            ->timeout(15)
+            ->get('/shiip/public-api/v3/master-data/ward/all-by-province-id', [
+                'province_id' => (int) $address->province_id,
+            ]);
+
+        $body = $response->json();
+
+        if (! $response->successful() || ($body['code'] ?? null) !== 200) {
+            throw ValidationException::withMessages([
+                'ghn' => 'Failed to resolve GHN district id: '.($body['message'] ?? 'Unknown error'),
+            ]);
+        }
+
+        $ward = collect($body['data'] ?? [])->first(function ($ward) use ($address) {
+            return (string) ($ward['_id'] ?? '') === (string) $address->ward_code;
+        });
+
+        if (! $ward || ! isset($ward['parent_id'])) {
+            throw ValidationException::withMessages([
+                'ghn' => 'Cannot resolve GHN district id from address ward.',
+            ]);
+        }
+
+        return (int) $ward['parent_id'];
     }
 
     public function getOrdersByUser(User $user, int $perPage = 10, int $page = 1)
