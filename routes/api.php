@@ -68,5 +68,6 @@ Route::middleware('auth:api')->group(function () {
 
 Route::middleware('auth:api')->prefix('order')->group(function () {
     Route::post('/', [\App\Http\Controllers\OrderController::class, 'store'])->name('order.store');
+    Route::get('/', [\App\Http\Controllers\OrderController::class, 'index'])->name('order.index');
+    Route::get('/{order}', [\App\Http\Controllers\OrderController::class, 'show'])->name('order.show');
 });
-

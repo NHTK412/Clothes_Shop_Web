@@ -149,4 +149,14 @@ class OrderService
             return $order->load(['orderDetails.productVariant.product', 'payment']);
         });
     }
+
+    public function getOrdersByUser(User $user, int $perPage = 10, int $page = 1)
+    {
+        return $user->orders()->with(['orderDetails.productVariant.product', 'payment'])->paginate($perPage, ['*'], 'page', $page);
+    }
+
+    public function getOrderById(User $user, int $orderId)
+    {
+        return $user->orders()->with(['orderDetails.productVariant.product', 'payment'])->findOrFail($orderId);
+    }
 }

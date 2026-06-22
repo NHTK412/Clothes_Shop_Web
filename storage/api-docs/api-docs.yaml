@@ -1160,6 +1160,148 @@ paths:
         302:
           description: 'Chuyển hướng đến trang đặt lại mật khẩu ở frontend'
   /api/order:
+    get:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Lấy danh sách đơn hàng của người dùng'
+      description: 'Trả về danh sách đơn hàng của người dùng đang đăng nhập, có phân trang và thông tin sản phẩm cơ bản trong từng đơn.'
+      operationId: getUserOrders
+      parameters:
+        -
+          name: page
+          in: query
+          description: 'Trang hiện tại.'
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        -
+          name: per_page
+          in: query
+          description: 'Số đơn hàng trên mỗi trang.'
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+          example: 10
+      responses:
+        200:
+          description: 'Lấy danh sách đơn hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            status:
+                              type: string
+                              example: PENDING_PAYMENT
+                            final_price:
+                              type: number
+                              format: float
+                              example: 298000
+                            created_at:
+                              type: string
+                              format: date-time
+                              example: '2026-06-22T12:00:00.000000Z'
+                            full_name:
+                              type: string
+                              example: 'Nguyễn Văn A'
+                            order_details:
+                              type: array
+                              items:
+                                properties:
+                                  product_variant_id:
+                                    type: integer
+                                    example: 1
+                                  quantity:
+                                    type: integer
+                                    example: 2
+                                  image:
+                                    type: string
+                                    example: products/ao-so-mi.jpg
+                                    nullable: true
+                                type: object
+                          type: object
+                      pagination:
+                        properties:
+                          current_page:
+                            type: integer
+                            example: 1
+                          per_page:
+                            type: integer
+                            example: 10
+                          total:
+                            type: integer
+                            example: 25
+                          last_page:
+                            type: integer
+                            example: 3
+                        type: object
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'Dữ liệu phân trang không hợp lệ'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
     post:
       tags:
         - 'Đơn hàng'
@@ -1207,94 +1349,87 @@ paths:
                     nullable: true
                   data:
                     properties:
-                      items:
+                      id:
+                        type: integer
+                        example: 1
+                      user_id:
+                        type: integer
+                        example: 1
+                      total_price:
+                        type: number
+                        format: float
+                        example: 398000
+                      discount_price:
+                        type: number
+                        format: float
+                        example: 100000
+                      final_price:
+                        type: number
+                        format: float
+                        example: 298000
+                      status:
+                        type: string
+                        example: PENDING_PAYMENT
+                      ghn_order_code:
+                        type: string
+                        example: LJXX123456
+                        nullable: true
+                      ward_code:
+                        type: string
+                        example: '1003544'
+                      ward_name:
+                        type: string
+                        example: 'Phường An Khánh'
+                      province_id:
+                        type: integer
+                        example: 202
+                      province_name:
+                        type: string
+                        example: 'Hồ Chí Minh'
+                      specific_address:
+                        type: string
+                        example: '12 Nguyễn Văn A'
+                      full_name:
+                        type: string
+                        example: 'Nguyễn Văn A'
+                      phone:
+                        type: string
+                        example: '0901234567'
+                      order_details:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            product_variant_id:
+                              type: integer
+                              example: 1
+                            quantity:
+                              type: integer
+                              example: 2
+                            unit_price:
+                              type: number
+                              format: float
+                              example: 199000
+                            unit_discount_price:
+                              type: number
+                              format: float
+                              example: 50000
+                              nullable: true
+                          type: object
+                      payment:
                         properties:
                           id:
                             type: integer
                             example: 1
-                          user_id:
-                            type: integer
-                            example: 1
-                          total_price:
-                            type: number
-                            format: float
-                            example: 398000
-                          discount_price:
-                            type: number
-                            format: float
-                            example: 100000
-                          final_price:
-                            type: number
-                            format: float
-                            example: 298000
+                          method:
+                            type: string
+                            example: COD
                           status:
                             type: string
-                            example: PENDING_PAYMENT
-                          ghn_order_code:
-                            type: string
-                            example: LJXX123456
-                            nullable: true
-                          ward_code:
-                            type: string
-                            example: '1003544'
-                          ward_name:
-                            type: string
-                            example: 'Phường An Khánh'
-                          province_id:
-                            type: integer
-                            example: 202
-                          province_name:
-                            type: string
-                            example: 'Hồ Chí Minh'
-                          specific_address:
-                            type: string
-                            example: '12 Nguyễn Văn A'
-                          full_name:
-                            type: string
-                            example: 'Nguyễn Văn A'
-                          phone:
-                            type: string
-                            example: '0901234567'
-                          order_details:
-                            type: array
-                            items:
-                              properties:
-                                id:
-                                  type: integer
-                                  example: 1
-                                product_variant_id:
-                                  type: integer
-                                  example: 1
-                                quantity:
-                                  type: integer
-                                  example: 2
-                                unit_price:
-                                  type: number
-                                  format: float
-                                  example: 199000
-                                unit_discount_price:
-                                  type: number
-                                  format: float
-                                  example: 50000
-                                  nullable: true
-                              type: object
-                          payment:
-                            properties:
-                              id:
-                                type: integer
-                                example: 1
-                              method:
-                                type: string
-                                example: COD
-                              status:
-                                type: string
-                                example: UNPAID
-                            type: object
+                            example: UNPAID
                         type: object
-                      pagination:
-                        type: object
-                        example: null
-                        nullable: true
                     type: object
                 type: object
         401:
@@ -1332,6 +1467,186 @@ paths:
                   message:
                     type: string
                     example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+  '/api/order/{order}':
+    get:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Lấy chi tiết đơn hàng'
+      description: 'Trả về chi tiết một đơn hàng của người dùng đang đăng nhập. Người dùng chỉ xem được đơn hàng thuộc tài khoản của mình.'
+      operationId: getOrderDetail
+      parameters:
+        -
+          name: order
+          in: path
+          description: 'ID đơn hàng.'
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Lấy chi tiết đơn hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      user_id:
+                        type: integer
+                        example: 1
+                      total_price:
+                        type: number
+                        format: float
+                        example: 398000
+                      discount_price:
+                        type: number
+                        format: float
+                        example: 100000
+                      final_price:
+                        type: number
+                        format: float
+                        example: 298000
+                      status:
+                        type: string
+                        example: PENDING_PAYMENT
+                      ghn_order_code:
+                        type: string
+                        example: LJXX123456
+                        nullable: true
+                      ward_code:
+                        type: string
+                        example: '1003544'
+                      ward_name:
+                        type: string
+                        example: 'Phường An Khánh'
+                      province_id:
+                        type: integer
+                        example: 202
+                      province_name:
+                        type: string
+                        example: 'Hồ Chí Minh'
+                      specific_address:
+                        type: string
+                        example: '12 Nguyễn Văn A'
+                      full_name:
+                        type: string
+                        example: 'Nguyễn Văn A'
+                      phone:
+                        type: string
+                        example: '0901234567'
+                      order_details:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            product_variant_id:
+                              type: integer
+                              example: 1
+                            quantity:
+                              type: integer
+                              example: 2
+                            unit_price:
+                              type: number
+                              format: float
+                              example: 199000
+                            unit_discount_price:
+                              type: number
+                              format: float
+                              example: 50000
+                              nullable: true
+                            product_variant:
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 1
+                                image:
+                                  type: string
+                                  example: products/ao-so-mi.jpg
+                                  nullable: true
+                                product:
+                                  properties:
+                                    id:
+                                      type: integer
+                                      example: 1
+                                    name:
+                                      type: string
+                                      example: 'Áo sơ mi'
+                                  type: object
+                              type: object
+                          type: object
+                      payment:
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          method:
+                            type: string
+                            example: COD
+                          status:
+                            type: string
+                            example: UNPAID
+                        type: object
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        404:
+          description: 'Không tìm thấy đơn hàng hoặc đơn hàng không thuộc người dùng hiện tại'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 404
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'No query results for model.'
                   data:
                     type: object
                     example: null
