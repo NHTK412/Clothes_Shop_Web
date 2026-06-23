@@ -1654,6 +1654,172 @@
                 ]
             }
         },
+        "/api/ghn/detail": {
+            "get": {
+                "tags": [
+                    "GHN"
+                ],
+                "summary": "Lấy chi tiết đơn giao hàng GHN",
+                "description": "Lấy lịch sử trạng thái đơn giao hàng từ GHN theo mã vận đơn order_code. Chỉ người dùng sở hữu đơn hàng mới được xem.",
+                "operationId": "getGhnOrderDetail",
+                "parameters": [
+                    {
+                        "name": "order_code",
+                        "in": "query",
+                        "description": "Mã vận đơn GHN.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "LX8E8H"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lấy chi tiết đơn giao hàng thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "picking"
+                                                    },
+                                                    "payment_type_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "trip_code": {
+                                                        "type": "string",
+                                                        "example": ""
+                                                    },
+                                                    "updated_date": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2026-06-21T10:27:27.812Z"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "GHN trả lỗi hoặc mã vận đơn không hợp lệ",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 400
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "GHN request failed."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Thiếu hoặc sai dữ liệu order_code",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 422
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The given data was invalid."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Không thể kết nối GHN",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 502
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "cURL error message"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/auth/reset-password/{token}": {
             "get": {
                 "tags": [

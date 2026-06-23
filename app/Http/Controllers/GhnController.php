@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Services\CartService;
+use App\Models\Order;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -227,6 +228,124 @@ class GhnController extends Controller
             'data' => [
                 'total' => $response->json('data.total'),
             ],
+        ], 200);
+    }
+
+    #[OA\Get(
+        path: '/api/ghn/detail',
+        operationId: 'getGhnOrderDetail',
+        summary: 'Lấy chi tiết đơn giao hàng GHN',
+        description: 'Lấy lịch sử trạng thái đơn giao hàng từ GHN theo mã vận đơn order_code. Chỉ người dùng sở hữu đơn hàng mới được xem.',
+        tags: ['GHN'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(
+                name: 'order_code',
+                description: 'Mã vận đơn GHN.',
+                in: 'query',
+                required: true,
+                schema: new OA\Schema(type: 'string'),
+                example: 'LX8E8H'
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Lấy chi tiết đơn giao hàng thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 200),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, example: null),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'array',
+                            items: new OA\Items(
+                                properties: [
+                                    new OA\Property(property: 'status', type: 'string', example: 'picking'),
+                                    new OA\Property(property: 'payment_type_id', type: 'integer', example: 1),
+                                    new OA\Property(property: 'trip_code', type: 'string', example: ''),
+                                    new OA\Property(property: 'updated_date', type: 'string', format: 'date-time', example: '2026-06-21T10:27:27.812Z'),
+                                ],
+                                type: 'object'
+                            )
+                        ),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: 'GHN trả lỗi hoặc mã vận đơn không hợp lệ',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 400),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'GHN request failed.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Thiếu hoặc sai dữ liệu order_code',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 422),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'The given data was invalid.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 502,
+                description: 'Không thể kết nối GHN',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 502),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'cURL error message'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+        ]
+    )]
+    public function detail(Request $request)
+    {
+        $validated = $request->validate([
+            'order_code' => 'required|string',
+        ]);
+
+        Order::where('user_id', $request->user()->id)
+            ->where('ghn_order_code', $validated['order_code'])
+            ->firstOrFail();
+
+        $response = $this->get('/shiip/public-api/v2/shipping-order/detail', [
+            'order_code' => $validated['order_code'],
+        ]);
+
+        if (! $response instanceof Response) {
+            return $response;
+        }
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => collect($response->json('data.log', []))
+                ->map(fn ($log) => [
+                    'status' => $log['status'] ?? null,
+                    'payment_type_id' => $log['payment_type_id'] ?? null,
+                    'trip_code' => $log['trip_code'] ?? '',
+                    'updated_date' => $log['updated_date'] ?? null,
+                ])
+                ->values()
+                ->toArray(),
         ], 200);
     }
 

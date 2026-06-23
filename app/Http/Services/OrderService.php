@@ -253,9 +253,15 @@ class OrderService
         return (int) $ward['parent_id'];
     }
 
-    public function getOrdersByUser(User $user, int $perPage = 10, int $page = 1)
+    public function getOrdersByUser(User $user, int $perPage = 10, int $page = 1, ?string $status = null)
     {
-        return $user->orders()->with(['orderDetails.productVariant.product', 'payment'])->paginate($perPage, ['*'], 'page', $page);
+        $query = $user->orders()->with(['orderDetails.productVariant.product', 'payment']);
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        return $query->paginate($perPage, ['*'], 'page', $page);
     }
 
     public function getOrderById(User $user, int $orderId)

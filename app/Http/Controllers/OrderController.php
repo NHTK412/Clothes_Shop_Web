@@ -47,7 +47,7 @@ class OrderController extends Controller
                         new OA\Property(
                             property: 'data',
                             properties: [
-                                
+
                                         new OA\Property(property: 'id', type: 'integer', example: 1),
                                         new OA\Property(property: 'user_id', type: 'integer', example: 1),
                                         new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 398000),
@@ -260,12 +260,14 @@ class OrderController extends Controller
         $validated = $request->validate([
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
+            'status' => 'nullable|string|in:PENDING_PAYMENT,CONFIRMED,SHIPPING,COMPLETED,CANCELLED,RETURNED',
         ]);
 
         $orders = $this->orderService->getOrdersByUser(
             $request->user(),
             $validated['per_page'] ?? 10,
-            $validated['page'] ?? 1
+            $validated['page'] ?? 1,
+            $validated['status'] ?? null
         );
 
         return response()->json([
@@ -420,7 +422,6 @@ class OrderController extends Controller
     public function show(Request $request, int $order)
     {
 
-        // Kiểm tra xem ID này có phải đơn hàng của người dùng hiện tại hay không
         $order = $this->orderService->getOrderById($request->user(), $order);
 
         return response()->json([

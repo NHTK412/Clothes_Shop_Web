@@ -55,6 +55,7 @@ Route::get('/vnpay/return', [VnpayController::class, 'return'])->name('vnpay.ret
 
 Route::middleware('auth:api')->group(function () {
     Route::get('/ghn/shipping-fee', [GhnController::class, 'shippingFee'])->name('ghn.shipping-fee');
+    Route::get('/ghn/detail', [GhnController::class, 'detail'])->name('ghn.detail');
 
     Route::get('/addresses', [AddressController::class, 'index'])->name('addresses.index');
     Route::post('/addresses', [AddressController::class, 'store'])->name('addresses.store');
