@@ -20,7 +20,7 @@ class OrderService
         return DB::transaction(function () use ($user, $addressId, $paymentMethod) {
             $address = Address::where('user_id', $user->id)->findOrFail($addressId);
 
-            $cart = Cart::with('items.productVariant')
+            $cart = Cart::with('items.productVariant.product')
                 ->where('user_id', $user->id)
                 ->first();
 
@@ -31,7 +31,6 @@ class OrderService
             }
 
             $totalPrice = 0;
-            $productDiscount = 0;
             $productFinalPrice = 0;
             $orderDetails = [];
             $shippingItems = [];
@@ -56,7 +55,6 @@ class OrderService
                 $unitFinalPrice = max($unitPrice - $unitDiscount, 0);
 
                 $totalPrice += $unitPrice * $item->quantity;
-                $productDiscount += $unitDiscount * $item->quantity;
                 $productFinalPrice += $unitFinalPrice * $item->quantity;
 
                 $orderDetails[] = [
@@ -80,7 +78,7 @@ class OrderService
             $shipPrice = $this->calculateShippingFee($address, $shippingItems);
             $discountPrice = 0;
             $discountShipPrice = 0;
-            $unitPrice = $productFinalPrice;
+            $totalPrice = $productFinalPrice;
             $finalPrice = $productFinalPrice + $shipPrice - $discountPrice - $discountShipPrice;
 
             $order = Order::create([

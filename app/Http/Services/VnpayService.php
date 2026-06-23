@@ -53,9 +53,12 @@ class VnpayService
             'vnp_Locale' => $locale ?: config('services.vnpay.locale', 'vn'),
             'vnp_OrderInfo' => "Thanh toan don hang {$order->id}",
             'vnp_OrderType' => config('services.vnpay.order_type', 'other'),
-            'vnp_ReturnUrl' => $returnUrl,
+            // 'vnp_ReturnUrl' => $returnUrl,
             'vnp_ExpireDate' => $now->copy()->addMinutes((int) config('services.vnpay.expire_minutes', 15))->format('YmdHis'),
             'vnp_TxnRef' => $txnRef,
+            // 'vnp_IpnUrl' => 'http://localhost:5173/return',
+            'vnp_ReturnUrl' => 'http://localhost:5173/return', // FE redirect
+            // 'vnp_IpnUrl' => 'https://your-ngrok-url.ngrok-free.app/api/vnpay/ipn', // BE webhook
         ];
 
         // if ($bankCode) {
