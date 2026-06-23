@@ -2860,6 +2860,211 @@
                 ]
             }
         },
+        "/api/profile": {
+            "get": {
+                "tags": [
+                    "Thông tin cá nhân"
+                ],
+                "summary": "Lấy thông tin cá nhân",
+                "description": "Lấy thông tin cá nhân của người dùng đang đăng nhập.",
+                "operationId": "getCurrentUserProfile",
+                "responses": {
+                    "200": {
+                        "description": "Lấy thông tin cá nhân thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Nguyễn Văn A",
+                                                    "nullable": true
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "user@example.com",
+                                                    "nullable": true
+                                                },
+                                                "phone": {
+                                                    "type": "string",
+                                                    "example": "0901234567",
+                                                    "nullable": true
+                                                },
+                                                "avatar": {
+                                                    "type": "string",
+                                                    "example": "users/avatar.jpg",
+                                                    "nullable": true
+                                                },
+                                                "role": {
+                                                    "type": "string",
+                                                    "example": "ROLE_CUSTOMER"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "ACTIVE"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Chưa xác thực"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Thông tin cá nhân"
+                ],
+                "summary": "Cập nhật thông tin cá nhân",
+                "description": "Cập nhật thông tin cá nhân của người dùng đang đăng nhập. Endpoint này không cho phép đổi mật khẩu.",
+                "operationId": "updateCurrentUserProfile",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Nguyễn Văn A",
+                                        "nullable": true
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "0901234567",
+                                        "nullable": true
+                                    },
+                                    "avatar": {
+                                        "type": "string",
+                                        "example": "users/avatar.jpg",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Cập nhật thông tin cá nhân thành công"
+                    },
+                    "401": {
+                        "description": "Chưa xác thực"
+                    },
+                    "422": {
+                        "description": "Dữ liệu không hợp lệ"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Thông tin cá nhân"
+                ],
+                "summary": "Xóa tài khoản hiện tại",
+                "description": "Xóa tài khoản của người dùng đang đăng nhập.",
+                "operationId": "deleteCurrentUserProfile",
+                "responses": {
+                    "200": {
+                        "description": "Xóa tài khoản thành công"
+                    },
+                    "401": {
+                        "description": "Chưa xác thực"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Thông tin cá nhân"
+                ],
+                "summary": "Cập nhật một phần thông tin cá nhân",
+                "description": "Cập nhật một phần thông tin cá nhân của người dùng đang đăng nhập. Endpoint này không cho phép đổi mật khẩu.",
+                "operationId": "patchCurrentUserProfile",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Nguyễn Văn A",
+                                        "nullable": true
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "0901234567",
+                                        "nullable": true
+                                    },
+                                    "avatar": {
+                                        "type": "string",
+                                        "example": "users/avatar.jpg",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Cập nhật thông tin cá nhân thành công"
+                    },
+                    "401": {
+                        "description": "Chưa xác thực"
+                    },
+                    "422": {
+                        "description": "Dữ liệu không hợp lệ"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/vnpay/payment-url": {
             "post": {
                 "tags": [
@@ -3214,6 +3419,10 @@
         {
             "name": "Sản phẩm",
             "description": "Sản phẩm"
+        },
+        {
+            "name": "Thông tin cá nhân",
+            "description": "Thông tin cá nhân"
         },
         {
             "name": "VNPAY",

@@ -7,6 +7,7 @@ use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\GhnController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\VnpayController;
 use Illuminate\Support\Facades\Route;
 
@@ -56,6 +57,11 @@ Route::get('/vnpay/return', [VnpayController::class, 'return'])->name('vnpay.ret
 Route::middleware('auth:api')->group(function () {
     Route::get('/ghn/shipping-fee', [GhnController::class, 'shippingFee'])->name('ghn.shipping-fee');
     Route::get('/ghn/detail', [GhnController::class, 'detail'])->name('ghn.detail');
+
+    Route::get('/profile', [UserProfileController::class, 'show'])->name('profile.show');
+    Route::put('/profile', [UserProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile', [UserProfileController::class, 'patch'])->name('profile.patch');
+    Route::delete('/profile', [UserProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('/addresses', [AddressController::class, 'index'])->name('addresses.index');
     Route::post('/addresses', [AddressController::class, 'store'])->name('addresses.store');
