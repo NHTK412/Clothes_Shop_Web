@@ -2860,6 +2860,134 @@
                 ]
             }
         },
+        "/api/upload": {
+            "post": {
+                "tags": [
+                    "Upload"
+                ],
+                "summary": "Tải ảnh sản phẩm lên Cloudinary",
+                "description": "Tải một ảnh sản phẩm lên Cloudinary và trả về image_url cùng public_id. Endpoint yêu cầu đăng nhập.",
+                "operationId": "uploadProductImage",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "image"
+                                ],
+                                "properties": {
+                                    "image": {
+                                        "description": "File ảnh sản phẩm. Hỗ trợ jpg, jpeg, png, webp. Tối đa 2MB.",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Tải ảnh thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "image_url": {
+                                                    "type": "string",
+                                                    "example": "https://res.cloudinary.com/demo/image/upload/v1710000000/clothes_shop/products/abc.jpg"
+                                                },
+                                                "public_id": {
+                                                    "type": "string",
+                                                    "example": "clothes_shop/products/abc"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Chưa xác thực",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 401
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "File ảnh không hợp lệ",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 422
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The given data was invalid."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/profile": {
             "get": {
                 "tags": [
@@ -3419,6 +3547,10 @@
         {
             "name": "Sản phẩm",
             "description": "Sản phẩm"
+        },
+        {
+            "name": "Upload",
+            "description": "Upload"
         },
         {
             "name": "Thông tin cá nhân",

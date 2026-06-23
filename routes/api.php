@@ -1,12 +1,14 @@
 <?php
 
-use App\Http\Controllers\Api\AttributeTypeController;
 use App\Http\Controllers\AddressController;
+use App\Http\Controllers\Api\AttributeTypeController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\GhnController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\UploadController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\VnpayController;
 use Illuminate\Support\Facades\Route;
@@ -77,9 +79,12 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/vnpay/payment-url', [VnpayController::class, 'createPaymentUrl'])->name('vnpay.payment-url');
 });
 
-
 Route::middleware('auth:api')->prefix('order')->group(function () {
-    Route::post('/', [\App\Http\Controllers\OrderController::class, 'store'])->name('order.store');
-    Route::get('/', [\App\Http\Controllers\OrderController::class, 'index'])->name('order.index');
-    Route::get('/{order}', [\App\Http\Controllers\OrderController::class, 'show'])->name('order.show');
+    Route::post('/', [OrderController::class, 'store'])->name('order.store');
+    Route::get('/', [OrderController::class, 'index'])->name('order.index');
+    Route::get('/{order}', [OrderController::class, 'show'])->name('order.show');
+});
+
+Route::middleware('auth:api')->prefix('upload')->group(function () {
+    Route::post('/', [UploadController::class, 'uploadProductImage'])->name('upload.product-image');
 });
