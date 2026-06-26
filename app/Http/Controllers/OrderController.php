@@ -48,43 +48,43 @@ class OrderController extends Controller
                             property: 'data',
                             properties: [
 
+                                new OA\Property(property: 'id', type: 'integer', example: 1),
+                                new OA\Property(property: 'user_id', type: 'integer', example: 1),
+                                new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 398000),
+                                new OA\Property(property: 'discount_price', type: 'number', format: 'float', example: 100000),
+                                new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 298000),
+                                new OA\Property(property: 'status', type: 'string', example: 'PENDING_PAYMENT'),
+                                new OA\Property(property: 'ghn_order_code', type: 'string', nullable: true, example: 'LJXX123456'),
+                                new OA\Property(property: 'ward_code', type: 'string', example: '1003544'),
+                                new OA\Property(property: 'ward_name', type: 'string', example: 'Phường An Khánh'),
+                                new OA\Property(property: 'province_id', type: 'integer', example: 202),
+                                new OA\Property(property: 'province_name', type: 'string', example: 'Hồ Chí Minh'),
+                                new OA\Property(property: 'specific_address', type: 'string', example: '12 Nguyễn Văn A'),
+                                new OA\Property(property: 'full_name', type: 'string', example: 'Nguyễn Văn A'),
+                                new OA\Property(property: 'phone', type: 'string', example: '0901234567'),
+                                new OA\Property(
+                                    property: 'order_details',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'product_variant_id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'quantity', type: 'integer', example: 2),
+                                            new OA\Property(property: 'unit_price', type: 'number', format: 'float', example: 199000),
+                                            new OA\Property(property: 'unit_discount_price', type: 'number', format: 'float', nullable: true, example: 50000),
+                                        ],
+                                        type: 'object'
+                                    )
+                                ),
+                                new OA\Property(
+                                    property: 'payment',
+                                    properties: [
                                         new OA\Property(property: 'id', type: 'integer', example: 1),
-                                        new OA\Property(property: 'user_id', type: 'integer', example: 1),
-                                        new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 398000),
-                                        new OA\Property(property: 'discount_price', type: 'number', format: 'float', example: 100000),
-                                        new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 298000),
-                                        new OA\Property(property: 'status', type: 'string', example: 'PENDING_PAYMENT'),
-                                        new OA\Property(property: 'ghn_order_code', type: 'string', nullable: true, example: 'LJXX123456'),
-                                        new OA\Property(property: 'ward_code', type: 'string', example: '1003544'),
-                                        new OA\Property(property: 'ward_name', type: 'string', example: 'Phường An Khánh'),
-                                        new OA\Property(property: 'province_id', type: 'integer', example: 202),
-                                        new OA\Property(property: 'province_name', type: 'string', example: 'Hồ Chí Minh'),
-                                        new OA\Property(property: 'specific_address', type: 'string', example: '12 Nguyễn Văn A'),
-                                        new OA\Property(property: 'full_name', type: 'string', example: 'Nguyễn Văn A'),
-                                        new OA\Property(property: 'phone', type: 'string', example: '0901234567'),
-                                        new OA\Property(
-                                            property: 'order_details',
-                                            type: 'array',
-                                            items: new OA\Items(
-                                                properties: [
-                                                    new OA\Property(property: 'id', type: 'integer', example: 1),
-                                                    new OA\Property(property: 'product_variant_id', type: 'integer', example: 1),
-                                                    new OA\Property(property: 'quantity', type: 'integer', example: 2),
-                                                    new OA\Property(property: 'unit_price', type: 'number', format: 'float', example: 199000),
-                                                    new OA\Property(property: 'unit_discount_price', type: 'number', format: 'float', nullable: true, example: 50000),
-                                                ],
-                                                type: 'object'
-                                            )
-                                        ),
-                                        new OA\Property(
-                                            property: 'payment',
-                                            properties: [
-                                                new OA\Property(property: 'id', type: 'integer', example: 1),
-                                                new OA\Property(property: 'method', type: 'string', example: 'COD'),
-                                                new OA\Property(property: 'status', type: 'string', example: 'UNPAID'),
-                                            ],
-                                            type: 'object'
-                                        ),
+                                        new OA\Property(property: 'method', type: 'string', example: 'COD'),
+                                        new OA\Property(property: 'status', type: 'string', example: 'UNPAID'),
+                                    ],
+                                    type: 'object'
+                                ),
                             ],
                             type: 'object'
                         ),
@@ -128,7 +128,14 @@ class OrderController extends Controller
                 'integer',
                 Rule::exists('addresses', 'id')->where('user_id', $request->user()->id),
             ],
-            'gift_code' => 'nullable|string',
+            'gift_code' => [
+                'nullable',
+                'string',
+                Rule::exists('vouchers', 'code')->where(function ($query) {
+                    $query->where('is_active', true)
+                        ->where('expiry_date', '>=', now());
+                }),
+            ],
             'payment_method' => 'nullable|in:COD,VNPAY',
         ]);
 
@@ -136,6 +143,7 @@ class OrderController extends Controller
             $request->user(),
             $validated['address_id'],
             $validated['payment_method'] ?? 'COD',
+            $validated['gift_code'] ?? null
         );
 
         return response()->json([

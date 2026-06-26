@@ -7,6 +7,7 @@ use App\Models\Cart;
 use App\Models\Order;
 use App\Models\RefundRequest;
 use App\Models\User;
+use App\Models\Voucher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
@@ -16,9 +17,10 @@ class OrderService
     public function createOrder(
         User $user,
         int $addressId,
-        string $paymentMethod = 'COD'
+        string $paymentMethod = 'COD',
+        ?string $giftCode = null
     ): Order {
-        return DB::transaction(function () use ($user, $addressId, $paymentMethod) {
+        return DB::transaction(function () use ($user, $addressId, $paymentMethod, $giftCode) {
             $address = Address::where('user_id', $user->id)->findOrFail($addressId);
 
             $cart = Cart::with('items.productVariant.product')
@@ -32,7 +34,7 @@ class OrderService
             }
 
             $totalPrice = 0;
-            $productFinalPrice = 0;
+            $discountPrice = 0;
             $orderDetails = [];
             $shippingItems = [];
 
@@ -53,10 +55,10 @@ class OrderService
 
                 $unitPrice = (float) $variant->price;
                 $unitDiscount = (float) ($variant->discount_price ?? 0);
-                $unitFinalPrice = max($unitPrice - $unitDiscount, 0);
+                $unitDiscount = min($unitDiscount, $unitPrice);
+                $unitFinalPrice = $unitPrice - $unitDiscount;
 
-                $totalPrice += $unitPrice * $item->quantity;
-                $productFinalPrice += $unitFinalPrice * $item->quantity;
+                $totalPrice += $unitFinalPrice * $item->quantity;
 
                 $orderDetails[] = [
                     'product_variant_id' => $item->product_variant_id,
@@ -77,10 +79,45 @@ class OrderService
 
             $orderStatus = $paymentMethod === 'COD' ? 'CONFIRMED' : 'PENDING_PAYMENT';
             $shipPrice = $this->calculateShippingFee($address, $shippingItems);
-            $discountPrice = 0;
             $discountShipPrice = 0;
-            $totalPrice = $productFinalPrice;
-            $finalPrice = $productFinalPrice + $shipPrice - $discountPrice - $discountShipPrice;
+            $voucher = null;
+
+            // Áp dụng voucher
+            if ($giftCode) {
+                $voucher = Voucher::where('code', $giftCode)
+                    ->where('is_active', true)
+                    ->where('expiry_date', '>=', now())
+                    ->first();
+
+                if (! $voucher) {
+                    throw ValidationException::withMessages([
+                        'gift_code' => 'Voucher is invalid or expired.',
+                    ]);
+                }
+
+                $voucherBaseAmount = $voucher->discount_type === 'SHIPPING'
+                    ? $shipPrice
+                    : $totalPrice;
+                $voucherDiscount = $voucherBaseAmount * ((float) $voucher->discount_amount / 100);
+
+                if ($voucher->max_discount_amount !== null) {
+                    $voucherDiscount = min($voucherDiscount, (float) $voucher->max_discount_amount);
+                }
+
+                if ($voucher->discount_type === 'SHIPPING') {
+                    $discountShipPrice = min($voucherDiscount, $shipPrice);
+                } else {
+                    $discountPrice = min($voucherDiscount, $totalPrice);
+                }
+
+                $voucher->usage_limit -= 1;
+                if ($voucher->usage_limit <= 0) {
+                    $voucher->is_active = false;
+                }
+                $voucher->save();
+            }
+
+            $finalPrice = $totalPrice + $shipPrice - $discountPrice - $discountShipPrice;
 
             $order = Order::create([
                 'user_id' => $user->id,
@@ -97,6 +134,11 @@ class OrderService
                 'specific_address' => $address->specific_address,
                 'full_name' => $address->full_name,
                 'phone' => $address->phone,
+                'voucher_id' => $voucher?->id,
+                'voucher_code' => $voucher?->code,
+                'voucher_discount_amount' => $voucher?->discount_amount,
+                'voucher_max_discount_amount' => $voucher?->max_discount_amount,
+                'voucher_type' => $voucher?->discount_type,
             ]);
 
             $order->orderDetails()->createMany($orderDetails);
@@ -110,7 +152,9 @@ class OrderService
 
             // Tạo đơn hàng ghn
             if (! config('services.ghn.shop_id')) {
-                return $this->error('GHN shop id is not configured.', 500);
+                throw ValidationException::withMessages([
+                    'ghn' => 'GHN shop id is not configured.',
+                ]);
             }
             try {
                 $token = config('services.ghn.token');

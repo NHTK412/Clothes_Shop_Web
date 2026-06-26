@@ -22,6 +22,13 @@ class Order extends Model
         'full_name',
         'phone',
         'ghn_order_code',
+
+        'voucher_id',
+        'voucher_code',
+        'voucher_discount_amount',
+        'voucher_max_discount_amount',
+        'voucher_type',
+
     ];
 
     public function user()
@@ -42,5 +49,10 @@ class Order extends Model
     public function refundRequest()
     {
         return $this->hasOne(RefundRequest::class);
+    }
+
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class);
     }
 }

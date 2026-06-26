@@ -3718,6 +3718,178 @@
                     }
                 }
             }
+        },
+        "/api/voucher/{voucher}": {
+            "get": {
+                "tags": [
+                    "Voucher"
+                ],
+                "summary": "Lấy chi tiết voucher theo mã",
+                "description": "Trả về thông tin voucher đang hoạt động và chưa hết hạn theo mã voucher.",
+                "operationId": "getVoucherByCode",
+                "parameters": [
+                    {
+                        "name": "voucher",
+                        "in": "path",
+                        "description": "Mã voucher cần kiểm tra.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "SALE100"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lấy thông tin voucher thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "code": {
+                                                    "type": "string",
+                                                    "example": "SALE100"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "Giảm 100.000đ cho đơn hàng",
+                                                    "nullable": true
+                                                },
+                                                "discount_amount": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 100000
+                                                },
+                                                "max_discount_amount": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 100000,
+                                                    "nullable": true
+                                                },
+                                                "discount_type": {
+                                                    "type": "string",
+                                                    "example": "ORDER",
+                                                    "enum": [
+                                                        "ORDER",
+                                                        "SHIPPING"
+                                                    ]
+                                                },
+                                                "is_active": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "usage_limit": {
+                                                    "type": "integer",
+                                                    "example": 100
+                                                },
+                                                "expiry_date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-12-31"
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-06-26T13:54:06.000000Z"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-06-26T13:54:06.000000Z"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Chưa xác thực",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 401
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Voucher không tồn tại, đã bị tắt hoặc đã hết hạn",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 422
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The selected voucher is invalid."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -3774,6 +3946,10 @@
         {
             "name": "VNPAY",
             "description": "VNPAY"
+        },
+        {
+            "name": "Voucher",
+            "description": "Voucher"
         }
     ]
 }

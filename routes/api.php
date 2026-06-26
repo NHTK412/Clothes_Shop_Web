@@ -10,6 +10,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\VnpayController;
 use Illuminate\Support\Facades\Route;
 
@@ -90,4 +91,12 @@ Route::middleware('auth:api')->prefix('order')->group(function () {
 
 Route::middleware('auth:api')->prefix('upload')->group(function () {
     Route::post('/', [UploadController::class, 'uploadProductImage'])->name('upload.product-image');
+});
+
+Route::middleware('auth:api')->prefix('voucher')->group(function () {
+    // Route::post('/', [VoucherController::class, 'store'])->name('voucher.store');
+    // Route::get('/', [VoucherController::class, 'index'])->name('voucher.index');
+    Route::get('/{voucher}', [VoucherController::class, 'show'])->name('voucher.show');
+    // Route::put('/{voucher}', [VoucherController::class, 'update'])->name('voucher.update');
+    // Route::delete('/{voucher}', [VoucherController::class, 'destroy'])->name('voucher.destroy');
 });
