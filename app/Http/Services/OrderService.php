@@ -5,6 +5,7 @@ namespace App\Http\Services;
 use App\Models\Address;
 use App\Models\Cart;
 use App\Models\Order;
+use App\Models\RefundRequest;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -267,5 +268,46 @@ class OrderService
     public function getOrderById(User $user, int $orderId)
     {
         return $user->orders()->with(['orderDetails.productVariant.product', 'payment'])->findOrFail($orderId);
+    }
+
+    public function cancelOrder(User $user, int $orderId): Order
+    {
+        return DB::transaction(function () use ($user, $orderId) {
+            $order = $user->orders()->with(['orderDetails.productVariant', 'payment'])->findOrFail($orderId);
+
+            if (! in_array($order->status, ['PENDING_PAYMENT', 'CONFIRMED'])) {
+                throw ValidationException::withMessages([
+                    'order' => 'Order cannot be canceled at this stage.',
+                ]);
+            }
+
+            $currentStatus = $order->status;
+
+            foreach ($order->orderDetails as $detail) {
+                $variant = $detail->productVariant()->lockForUpdate()->first();
+                if ($variant) {
+                    $variant->stock += $detail->quantity;
+                    $variant->save();
+                }
+            }
+
+            $order->status = 'CANCELLED';
+
+            if ($currentStatus == 'CONFIRMED' && $order->payment && $order->payment->status == 'PAID') {
+                $order->payment->status = 'REFUNDED';
+                $order->payment->save();
+
+                $refundRequest = RefundRequest::create([
+                    'order_id' => $order->id,
+                    'amount' => $order->final_price,
+                    'status' => 'PENDING',
+                    'reason' => 'Hoàn tiền do hủy đơn hàng',
+                    'user_id' => $user->id,
+                ]);
+            }
+            $order->save();
+
+            return $order;
+        });
     }
 }

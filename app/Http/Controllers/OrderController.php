@@ -431,4 +431,109 @@ class OrderController extends Controller
             'data' => $order->toArray(),
         ]);
     }
+
+    #[OA\Patch(
+        path: '/api/order/{order}/cancel',
+        operationId: 'cancelOrder',
+        summary: 'Hủy đơn hàng',
+        description: 'Hủy đơn hàng của người dùng đang đăng nhập. Chỉ các đơn ở trạng thái PENDING_PAYMENT hoặc CONFIRMED mới có thể hủy.',
+        security: [['bearerAuth' => []]],
+        tags: ['Đơn hàng'],
+        parameters: [
+            new OA\Parameter(
+                name: 'order',
+                description: 'ID đơn hàng cần hủy.',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                example: 1
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Hủy đơn hàng thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 200),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Đơn hàng đã được hủy thành công.'),
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', example: 1),
+                                new OA\Property(property: 'user_id', type: 'integer', example: 1),
+                                new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 398000),
+                                new OA\Property(property: 'discount_price', type: 'number', format: 'float', example: 0),
+                                new OA\Property(property: 'ship_price', type: 'number', format: 'float', example: 49500),
+                                new OA\Property(property: 'discount_ship_price', type: 'number', format: 'float', example: 0),
+                                new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 447500),
+                                new OA\Property(property: 'status', type: 'string', example: 'CANCELLED'),
+                                new OA\Property(property: 'ghn_order_code', type: 'string', nullable: true, example: 'LX8E8H'),
+                                new OA\Property(property: 'ward_code', type: 'string', example: '1003544'),
+                                new OA\Property(property: 'ward_name', type: 'string', example: 'Phường An Khánh'),
+                                new OA\Property(property: 'province_id', type: 'integer', example: 202),
+                                new OA\Property(property: 'province_name', type: 'string', example: 'Hồ Chí Minh'),
+                                new OA\Property(property: 'specific_address', type: 'string', example: '12 Nguyễn Văn A'),
+                                new OA\Property(property: 'full_name', type: 'string', example: 'Nguyễn Văn A'),
+                                new OA\Property(property: 'phone', type: 'string', example: '0901234567'),
+                            ],
+                            type: 'object'
+                        ),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Chưa xác thực',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 401),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Không tìm thấy đơn hàng hoặc đơn hàng không thuộc người dùng hiện tại',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 404),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'No query results for model.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Đơn hàng không thể hủy ở trạng thái hiện tại',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 422),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Order cannot be canceled at this stage.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+        ]
+    )]
+    public function cancel(Request $request, int $order)
+    {
+        $order = $this->orderService->cancelOrder($request->user(), $order);
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => 'Đơn hàng đã được hủy thành công.',
+            'data' => $order->toArray(),
+        ]);
+    }
 }

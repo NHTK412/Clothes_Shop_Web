@@ -202,4 +202,34 @@ class AuthController extends Controller
                 'message' => 'Đặt lại mật khẩu thất bại',
             ], 400);
     }
+
+    public function oauth2Login(Request $request)
+    {
+        $request->validate([
+            'provider' => 'required|string|in:GOOGLE',
+            'email' => 'required|string',
+            'uid' => 'required|string',
+            'name' => 'nullable|string',
+        ]);
+
+        $result = $this->authService->oauth2Login(
+            $request->input('provider'),
+            $request->input('uid'),
+            $request->input('email'),
+            $request->input('name')
+        );
+
+        if (! $result) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Đăng nhập thất bại, vui lòng thử lại.',
+            ], 400);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => null,
+            'data' => $result,
+        ], 200);
+    }
 }

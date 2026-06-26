@@ -84,7 +84,7 @@ class UploadController extends Controller
     public function uploadProductImage(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'image' => 'required|image|mimes:jpg,jpeg,png,webp',
         ]);
 
         $cloudinary = new Cloudinary([

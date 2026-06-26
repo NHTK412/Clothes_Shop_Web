@@ -26,6 +26,8 @@ Route::prefix('auth')->group(function () {
     })->name('password.reset');
 
     Route::post('/reset-password', [AuthController::class, 'resetPasswordApi'])->name('password.update.api');
+
+    Route::post('/oauth2', [AuthController::class, 'oauth2Login'])->name('oauth2.login');
 });
 
 Route::get('/products', [ProductController::class, 'index'])->name('products.index');
@@ -83,6 +85,7 @@ Route::middleware('auth:api')->prefix('order')->group(function () {
     Route::post('/', [OrderController::class, 'store'])->name('order.store');
     Route::get('/', [OrderController::class, 'index'])->name('order.index');
     Route::get('/{order}', [OrderController::class, 'show'])->name('order.show');
+    Route::patch('/{order}/cancel', [OrderController::class, 'cancel'])->name('order.cancel');
 });
 
 Route::middleware('auth:api')->prefix('upload')->group(function () {

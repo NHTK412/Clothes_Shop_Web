@@ -138,7 +138,9 @@ class UserProfileController extends Controller
     )]
     public function destroy(Request $request)
     {
-        $request->user()->delete();
+        // $request->user()->delete();
+
+        $request->user()->update(['status' => 'INACTIVE']);
 
         return response()->json([
             'status' => 200,
