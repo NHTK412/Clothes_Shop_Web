@@ -10,8 +10,8 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\UserProfileController;
-use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\VnpayController;
+use App\Http\Controllers\VoucherController;
 use Illuminate\Support\Facades\Route;
 
 // Route::post('/login', [AuthController::class, 'authenticateApi'])->name('login.authenticate');
@@ -42,6 +42,10 @@ Route::get('/categories/{id}', [CategoryController::class, 'show'])->name('categ
 Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
 Route::put('/categories/{id}', [CategoryController::class, 'update'])->name('categories.update');
 Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+Route::post('/products/{productId}/favorites', [ProductController::class, 'addFavorite'])->name('products.favorites.add');
+Route::delete('/products/{productId}/favorites', [ProductController::class, 'removeFavorite'])->name('products.favorites.remove');
+Route::get('/users/{userId}/favorites', [ProductController::class, 'getUserFavorites'])->name('users.favorites.index');
 
 // Attribute types and values (CRUD)
 Route::get('/attributes', [AttributeTypeController::class, 'index'])->name('attributes.index');

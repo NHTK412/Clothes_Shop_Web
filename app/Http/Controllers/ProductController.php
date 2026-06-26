@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\OrderDetail;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Models\Category;
-use App\Models\OrderDetail;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use OpenApi\Attributes as OA;
 
 class ProductController extends Controller
@@ -47,6 +46,7 @@ class ProductController extends Controller
         $attrs = $request->query('attr', []); // e.g. attr[color]=blue&attr[size]=M
 
         $query = Product::with(['variants.attributeValues', 'categories']);
+
 
         if ($category) {
             $query->whereHas('categories', function ($qcat) use ($category) {
@@ -148,7 +148,6 @@ class ProductController extends Controller
         }
 
         $products = $query->paginate($perPage, ['*'], 'page', $page);
-
 
         $payload = [
             'status' => 200,
@@ -265,7 +264,7 @@ class ProductController extends Controller
     {
         // require admin role
         $user = $request->user();
-        if (!$user || (($user->role ?? null) !== 'admin')) {
+        if (! $user || (($user->role ?? null) !== 'admin')) {
             return response()->json([
                 'status' => 403,
                 'success' => false,
@@ -285,7 +284,7 @@ class ProductController extends Controller
             'variants' => 'nullable',
         ]);
 
-        $product = new Product();
+        $product = new Product;
         $product->name = $validated['name'];
         $product->description = $validated['description'] ?? null;
         $product->price = $validated['price'];
@@ -296,17 +295,20 @@ class ProductController extends Controller
         // Attach categories if provided. Accept single id (string/int) or array of ids/objects.
         if (array_key_exists('categories', $validated) && $validated['categories'] !== null) {
             $catsRaw = $validated['categories'];
-            if (!is_array($catsRaw)) {
+            if (! is_array($catsRaw)) {
                 $cats = [$catsRaw];
             } else {
                 $cats = $catsRaw;
             }
             $catIds = array_map(function ($c) {
-                if (is_array($c) && isset($c['id'])) return (int) $c['id'];
+                if (is_array($c) && isset($c['id'])) {
+                    return (int) $c['id'];
+                }
+
                 return (int) $c;
             }, $cats);
-            $catIds = array_filter($catIds, fn($v) => $v > 0);
-            if (!empty($catIds)) {
+            $catIds = array_filter($catIds, fn ($v) => $v > 0);
+            if (! empty($catIds)) {
                 $product->categories()->sync($catIds);
             }
         }
@@ -317,7 +319,7 @@ class ProductController extends Controller
         // - array of objects => create new variants
         if (array_key_exists('variants', $validated) && $validated['variants'] !== null) {
             $varsRaw = $validated['variants'];
-            if (!is_array($varsRaw)) {
+            if (! is_array($varsRaw)) {
                 // single id
                 $vid = (int) $varsRaw;
                 $existing = ProductVariant::find($vid);
@@ -331,10 +333,10 @@ class ProductController extends Controller
                 if (is_array($first) && array_key_exists('sku', $first)) {
                     // array of objects => create
                     foreach ($varsRaw as $v) {
-                        $pv = new ProductVariant();
+                        $pv = new ProductVariant;
                         $pv->sku = $v['sku'] ?? null;
                         if ($pv->sku && ProductVariant::where('sku', $pv->sku)->exists()) {
-                            $pv->sku = $pv->sku . '-' . uniqid();
+                            $pv->sku = $pv->sku.'-'.uniqid();
                         }
                         $pv->price = $v['price'] ?? 0;
                         $pv->discount_price = $v['discount_price'] ?? null;
@@ -344,13 +346,16 @@ class ProductController extends Controller
                         $pv->save();
 
                         // attach attribute values if provided (array of ids)
-                        if (!empty($v['attribute_value_ids']) && is_array($v['attribute_value_ids'])) {
+                        if (! empty($v['attribute_value_ids']) && is_array($v['attribute_value_ids'])) {
                             $pv->attributeValues()->sync(array_map('intval', $v['attribute_value_ids']));
-                        } elseif (!empty($v['attribute_values']) && is_array($v['attribute_values'])) {
+                        } elseif (! empty($v['attribute_values']) && is_array($v['attribute_values'])) {
                             // accept array of attribute value objects or values (try id first)
                             $ids = array_map(function ($it) {
-                                if (is_array($it) && isset($it['id'])) return (int)$it['id'];
-                                return (int)$it;
+                                if (is_array($it) && isset($it['id'])) {
+                                    return (int) $it['id'];
+                                }
+
+                                return (int) $it;
                             }, $v['attribute_values']);
                             $pv->attributeValues()->sync(array_filter($ids));
                         }
@@ -438,7 +443,7 @@ class ProductController extends Controller
     {
         // require admin role
         $user = $request->user();
-        if (!$user || (($user->role ?? null) !== 'admin')) {
+        if (! $user || (($user->role ?? null) !== 'admin')) {
             return response()->json([
                 'status' => 403,
                 'success' => false,
@@ -472,23 +477,26 @@ class ProductController extends Controller
         // Handle categories: accept single id or array
         if (array_key_exists('categories', $validated) && $validated['categories'] !== null) {
             $catsRaw = $validated['categories'];
-            if (!is_array($catsRaw)) {
+            if (! is_array($catsRaw)) {
                 $cats = [$catsRaw];
             } else {
                 $cats = $catsRaw;
             }
             $catIds = array_map(function ($c) {
-                if (is_array($c) && isset($c['id'])) return (int) $c['id'];
+                if (is_array($c) && isset($c['id'])) {
+                    return (int) $c['id'];
+                }
+
                 return (int) $c;
             }, $cats);
-            $catIds = array_filter($catIds, fn($v) => $v > 0);
+            $catIds = array_filter($catIds, fn ($v) => $v > 0);
             $product->categories()->sync($catIds);
         }
 
         // Handle variants: single id / array of ids / array of objects
         if (array_key_exists('variants', $validated) && $validated['variants'] !== null) {
             $varsRaw = $validated['variants'];
-            if (!is_array($varsRaw)) {
+            if (! is_array($varsRaw)) {
                 $vid = (int) $varsRaw;
                 $existing = ProductVariant::find($vid);
                 if ($existing) {
@@ -501,29 +509,37 @@ class ProductController extends Controller
                     // array of objects => create new variants and assign
                     foreach ($varsRaw as $v) {
                         $pv = null;
-                        if (!empty($v['id'])) {
-                            $pv = ProductVariant::find((int)$v['id']);
+                        if (! empty($v['id'])) {
+                            $pv = ProductVariant::find((int) $v['id']);
                         }
                         if ($pv) {
                             // update existing
                             if (array_key_exists('sku', $v)) {
                                 $pv->sku = $v['sku'] ?? $pv->sku;
                                 if ($pv->sku && ProductVariant::where('sku', $pv->sku)->where('id', '!=', $pv->id)->exists()) {
-                                    $pv->sku = $pv->sku . '-' . uniqid();
+                                    $pv->sku = $pv->sku.'-'.uniqid();
                                 }
                             }
-                            if (array_key_exists('price', $v)) $pv->price = $v['price'];
-                            if (array_key_exists('discount_price', $v)) $pv->discount_price = $v['discount_price'];
-                            if (array_key_exists('stock', $v)) $pv->stock = $v['stock'];
-                            if (array_key_exists('image', $v)) $pv->image = $v['image'];
+                            if (array_key_exists('price', $v)) {
+                                $pv->price = $v['price'];
+                            }
+                            if (array_key_exists('discount_price', $v)) {
+                                $pv->discount_price = $v['discount_price'];
+                            }
+                            if (array_key_exists('stock', $v)) {
+                                $pv->stock = $v['stock'];
+                            }
+                            if (array_key_exists('image', $v)) {
+                                $pv->image = $v['image'];
+                            }
                             $pv->product_id = $product->id;
                             $pv->save();
                         } else {
                             // create new
-                            $pv = new ProductVariant();
+                            $pv = new ProductVariant;
                             $pv->sku = $v['sku'] ?? null;
                             if ($pv->sku && ProductVariant::where('sku', $pv->sku)->exists()) {
-                                $pv->sku = $pv->sku . '-' . uniqid();
+                                $pv->sku = $pv->sku.'-'.uniqid();
                             }
                             $pv->price = $v['price'] ?? 0;
                             $pv->discount_price = $v['discount_price'] ?? null;
@@ -534,19 +550,22 @@ class ProductController extends Controller
                         }
 
                         // sync attribute values if provided
-                        if (!empty($v['attribute_value_ids']) && is_array($v['attribute_value_ids'])) {
+                        if (! empty($v['attribute_value_ids']) && is_array($v['attribute_value_ids'])) {
                             $pv->attributeValues()->sync(array_map('intval', $v['attribute_value_ids']));
-                        } elseif (!empty($v['attribute_values']) && is_array($v['attribute_values'])) {
+                        } elseif (! empty($v['attribute_values']) && is_array($v['attribute_values'])) {
                             $ids = array_map(function ($it) {
-                                if (is_array($it) && isset($it['id'])) return (int)$it['id'];
-                                return (int)$it;
+                                if (is_array($it) && isset($it['id'])) {
+                                    return (int) $it['id'];
+                                }
+
+                                return (int) $it;
                             }, $v['attribute_values']);
                             $pv->attributeValues()->sync(array_filter($ids));
                         }
                     }
                 } else {
                     // array of ids -> make these the product's variants; unassign others
-                    $newIds = array_map(fn($v) => (int)$v, $varsRaw);
+                    $newIds = array_map(fn ($v) => (int) $v, $varsRaw);
                     // remove variants that currently belong to this product but are not in newIds
                     // but skip deleting any variants that are referenced by order_details
                     $toRemove = ProductVariant::where('product_id', $product->id)
@@ -576,8 +595,8 @@ class ProductController extends Controller
         $product->load(['variants', 'categories']);
 
         $message = null;
-        if (!empty($blocked ?? [])) {
-            $message = 'Some variants could not be removed because they are referenced by order_details: ' . implode(',', $blocked);
+        if (! empty($blocked ?? [])) {
+            $message = 'Some variants could not be removed because they are referenced by order_details: '.implode(',', $blocked);
         }
 
         $payload = [
@@ -600,7 +619,7 @@ class ProductController extends Controller
     {
         // require admin role
         $user = $request->user();
-        if (!$user || (($user->role ?? null) !== 'admin')) {
+        if (! $user || (($user->role ?? null) !== 'admin')) {
             return response()->json([
                 'status' => 403,
                 'success' => false,
@@ -617,6 +636,77 @@ class ProductController extends Controller
             'success' => true,
             'message' => null,
             'data' => null,
+        ], 200);
+    }
+
+    public function addFavorite(Request $request, $productId)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json([
+                'status' => 401,
+                'success' => false,
+                'message' => 'Unauthorized: login required',
+                'data' => null,
+            ], 401);
+        }
+
+        $product = Product::findOrFail($productId);
+        $user->favorites()->firstOrCreate(['product_id' => $product->id]);
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => 'Product added to favorites',
+            'data' => true,
+        ], 200);
+    }
+
+    public function removeFavorite(Request $request, $productId)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json([
+                'status' => 401,
+                'success' => false,
+                'message' => 'Unauthorized: login required',
+                'data' => null,
+            ], 401);
+        }
+
+        $product = Product::findOrFail($productId);
+        $user->favorites()->where('product_id', $product->id)->delete();
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => 'Product removed from favorites',
+            'data' => true,
+        ], 200);
+    }
+
+    public function getUserFavorites(Request $request, $userId)
+    {
+        $user = $request->user();
+        if (! $user || $user->id != $userId) {
+            return response()->json([
+                'status' => 403,
+                'success' => false,
+                'message' => 'Forbidden: cannot access other user\'s favorites',
+                'data' => null,
+            ], 403);
+        }
+
+        $favorites = $user->favorites()->with('product')->get();
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'items' => $favorites->map(fn ($fav) => $fav->product)->filter(),
+                'pagination' => null,
+            ],
         ], 200);
     }
 }
