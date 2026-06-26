@@ -59,6 +59,7 @@ Route::prefix('ghn')->group(function () {
     Route::get('/provinces', [GhnController::class, 'provinces'])->name('ghn.provinces');
     Route::get('/districts', [GhnController::class, 'districts'])->name('ghn.districts');
     Route::get('/wards', [GhnController::class, 'wards'])->name('ghn.wards');
+    Route::post('/webhook/order-status', [OrderController::class, 'update'])->name('ghn.webhook.order-status');
 });
 
 Route::get('/vnpay/return', [VnpayController::class, 'return'])->name('vnpay.return');

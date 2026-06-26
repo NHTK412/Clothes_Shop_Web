@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Services\OrderService;
+use App\Models\Order;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
+use Throwable;
 
 class OrderController extends Controller
 {
@@ -571,5 +574,233 @@ class OrderController extends Controller
             'message' => 'Đánh giá sản phẩm thành công.',
             'data' => $review
         ], 201);
+    }
+
+
+    #[OA\Post(
+        path: '/api/ghn/webhook/order-status',
+        operationId: 'updateOrderStatusFromGhnWebhook',
+        summary: 'Webhook cập nhật trạng thái đơn hàng từ GHN',
+        description: 'Endpoint để GHN thông báo đơn hàng có thay đổi. GHN gửi kèm token do hệ thống cung cấp và mã vận đơn. Sau khi xác thực token, hệ thống gọi API chi tiết đơn hàng GHN để lấy status hiện tại rồi cập nhật trạng thái nội bộ: picked -> SHIPPING, delivered -> COMPLETED, return -> RETURNED.',
+        tags: ['GHN'],
+        parameters: [
+            new OA\Parameter(
+                name: 'X-GHN-Webhook-Token',
+                description: 'Token webhook do hệ thống cung cấp cho GHN. Có thể gửi bằng header này, X-Webhook-Token, Authorization: Bearer token, hoặc field token trong body.',
+                in: 'header',
+                required: true,
+                schema: new OA\Schema(type: 'string'),
+                example: 'webhook-secret-token'
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['order_code'],
+                properties: [
+                    new OA\Property(property: 'order_code', type: 'string', example: '5E3NK3RS'),
+                    new OA\Property(property: 'token', type: 'string', nullable: true, example: 'webhook-secret-token'),
+                ],
+                type: 'object'
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Cập nhật trạng thái đơn hàng thành công hoặc webhook status không cần cập nhật',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 200),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, example: null),
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(property: 'ghn_status', type: 'string', example: 'picked'),
+                                new OA\Property(property: 'old_status', type: 'string', example: 'CONFIRMED'),
+                                new OA\Property(property: 'new_status', type: 'string', example: 'SHIPPING'),
+                                new OA\Property(property: 'status_changed', type: 'boolean', example: true),
+                                new OA\Property(
+                                    property: 'order',
+                                    properties: [
+                                        new OA\Property(property: 'id', type: 'integer', example: 1),
+                                        new OA\Property(property: 'user_id', type: 'integer', example: 1),
+                                        new OA\Property(property: 'status', type: 'string', example: 'SHIPPING'),
+                                        new OA\Property(property: 'ghn_order_code', type: 'string', example: '5E3NK3RS'),
+                                        new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 300000),
+                                        new OA\Property(property: 'discount_price', type: 'number', format: 'float', example: 0),
+                                        new OA\Property(property: 'ship_price', type: 'number', format: 'float', example: 30000),
+                                        new OA\Property(property: 'discount_ship_price', type: 'number', format: 'float', example: 0),
+                                        new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 330000),
+                                    ],
+                                    type: 'object'
+                                ),
+                            ],
+                            type: 'object'
+                        ),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Không tìm thấy đơn hàng theo mã vận đơn GHN',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'No query results for model.'),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Thiếu mã vận đơn GHN',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 422),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Missing GHN order code.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Token webhook không hợp lệ',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 401),
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Invalid GHN webhook token.'),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+        ]
+    )]
+    public function update(Request $request)
+    {
+        $payload = $request->all();
+        $configuredWebhookToken = config('services.ghn.webhook_token');
+        $incomingToken = $request->bearerToken()
+            ?? $request->header('X-GHN-Webhook-Token')
+            ?? $request->header('X-Webhook-Token')
+            ?? $payload['token']
+            ?? $payload['webhook_token']
+            ?? data_get($payload, 'data.token')
+            ?? data_get($payload, 'data.webhook_token');
+
+        if (! $configuredWebhookToken) {
+            return response()->json([
+                'status' => 500,
+                'success' => false,
+                'message' => 'GHN webhook token is not configured.',
+                'data' => null,
+            ], 500);
+        }
+
+        if (! $incomingToken || ! hash_equals((string) $configuredWebhookToken, (string) $incomingToken)) {
+            return response()->json([
+                'status' => 401,
+                'success' => false,
+                'message' => 'Invalid GHN webhook token.',
+                'data' => null,
+            ], 401);
+        }
+
+        $orderCode = $payload['order_code']
+            ?? $payload['OrderCode']
+            ?? $payload['orderCode']
+            ?? data_get($payload, 'data.order_code')
+            ?? data_get($payload, 'data.OrderCode');
+
+        if (! $orderCode) {
+            return response()->json([
+                'status' => 422,
+                'success' => false,
+                'message' => 'Missing GHN order code.',
+                'data' => null,
+            ], 422);
+        }
+
+        $order = Order::where('ghn_order_code', $orderCode)->firstOrFail();
+
+        $ghnToken = config('services.ghn.token');
+
+        if (! $ghnToken) {
+            return response()->json([
+                'status' => 500,
+                'success' => false,
+                'message' => 'GHN token is not configured.',
+                'data' => null,
+            ], 500);
+        }
+
+        try {
+            $response = Http::baseUrl(config('services.ghn.base_url'))
+                ->withHeaders(['Token' => $ghnToken])
+                ->acceptJson()
+                ->withOptions([
+                    'verify' => config('services.ghn.verify_ssl'),
+                ])
+                ->timeout(15)
+                ->get('/shiip/public-api/v2/shipping-order/detail', [
+                    'order_code' => $orderCode,
+                ]);
+        } catch (Throwable $exception) {
+            return response()->json([
+                'status' => 502,
+                'success' => false,
+                'message' => $exception->getMessage(),
+                'data' => null,
+            ], 502);
+        }
+
+        $body = $response->json();
+
+        if (! $response->successful() || ($body['code'] ?? null) !== 200) {
+            $status = $response->successful() ? 400 : $response->status();
+
+            return response()->json([
+                'status' => $status,
+                'success' => false,
+                'message' => $body['message'] ?? 'GHN request failed.',
+                'data' => null,
+            ], $status);
+        }
+
+        $ghnStatus = $body['data']['status'] ?? null;
+        $oldStatus = $order->status;
+
+        $statusMap = [
+            // Nếu là đã tới lấy hàng thì cập nhật thành đang giao
+            'picked' => 'SHIPPING',
+
+            // Nếu là đã giao hàng thì cập nhật thành hoàn thành
+            'delivered' => 'COMPLETED',
+
+            // Nếu là trả hàng thì cập nhật thành trả hàng
+            'return' => 'RETURNED',
+        ];
+
+        if (isset($statusMap[$ghnStatus]) && $order->status !== $statusMap[$ghnStatus]) {
+            $order->status = $statusMap[$ghnStatus];
+            $order->save();
+        }
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'ghn_status' => $ghnStatus,
+                'old_status' => $oldStatus,
+                'new_status' => $order->status,
+                'status_changed' => $oldStatus !== $order->status,
+                'order' => $order->fresh()->toArray(),
+            ],
+        ]);
     }
 }

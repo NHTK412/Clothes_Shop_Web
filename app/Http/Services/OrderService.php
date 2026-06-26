@@ -327,6 +327,10 @@ class OrderService
 
             $currentStatus = $order->status;
 
+            if ($order->ghn_order_code) {
+                $this->cancelGhnOrder($order->ghn_order_code);
+            }
+
             foreach ($order->orderDetails as $detail) {
                 $variant = $detail->productVariant()->lockForUpdate()->first();
                 if ($variant) {
@@ -353,6 +357,56 @@ class OrderService
 
             return $order;
         });
+    }
+
+    private function cancelGhnOrder(string $orderCode): void
+    {
+        if (! config('services.ghn.shop_id')) {
+            throw ValidationException::withMessages([
+                'ghn' => 'GHN shop id is not configured.',
+            ]);
+        }
+
+        $token = config('services.ghn.token');
+
+        if (! $token) {
+            throw ValidationException::withMessages([
+                'ghn' => 'GHN token is not configured.',
+            ]);
+        }
+
+        try {
+            $response = Http::baseUrl(config('services.ghn.base_url'))
+                ->withHeaders([
+                    'Token' => $token,
+                    'ShopId' => config('services.ghn.shop_id'),
+                ])
+                ->acceptJson()
+                ->withOptions([
+                    'verify' => config('services.ghn.verify_ssl'),
+                ])
+                ->timeout(15)
+                ->post('/shiip/public-api/v2/switch-status/cancel', [
+                    'order_codes' => [$orderCode],
+                ]);
+        } catch (\Exception $e) {
+            throw ValidationException::withMessages([
+                'ghn' => 'Failed to cancel order with GHN: '.$e->getMessage(),
+            ]);
+        }
+
+        $body = $response->json();
+        $cancelResult = collect($body['data'] ?? [])->firstWhere('order_code', $orderCode);
+
+        if (
+            ! $response->successful()
+            || ($body['code'] ?? null) !== 200
+            || ! ($cancelResult['result'] ?? false)
+        ) {
+            throw ValidationException::withMessages([
+                'ghn' => 'Failed to cancel order with GHN: '.($cancelResult['message'] ?? $body['message'] ?? 'Unknown error'),
+            ]);
+        }
     }
 
     public function reviewOrderDetail(User $user, int $orderId, int $orderDetailId, int $rating, ?string $comment = null, array $imagePaths = [])

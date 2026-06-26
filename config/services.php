@@ -38,6 +38,7 @@ return [
     'ghn' => [
         'base_url' => env('GHN_BASE_URL', 'https://dev-online-gateway.ghn.vn'),
         'token' => env('GHN_TOKEN'),
+        'webhook_token' => env('GHN_WEBHOOK_TOKEN'),
         'shop_id' => env('GHN_SHOP_ID'),
         'verify_ssl' => env('GHN_VERIFY_SSL', true),
         'default_service_type_id' => env('GHN_DEFAULT_SERVICE_TYPE_ID', 2),

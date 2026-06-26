@@ -2766,6 +2766,220 @@
                 ]
             }
         },
+        "/api/ghn/webhook/order-status": {
+            "post": {
+                "tags": [
+                    "GHN"
+                ],
+                "summary": "Webhook cập nhật trạng thái đơn hàng từ GHN",
+                "description": "Endpoint để GHN thông báo đơn hàng có thay đổi. GHN gửi kèm token do hệ thống cung cấp và mã vận đơn. Sau khi xác thực token, hệ thống gọi API chi tiết đơn hàng GHN để lấy status hiện tại rồi cập nhật trạng thái nội bộ: picked -> SHIPPING, delivered -> COMPLETED, return -> RETURNED.",
+                "operationId": "updateOrderStatusFromGhnWebhook",
+                "parameters": [
+                    {
+                        "name": "X-GHN-Webhook-Token",
+                        "in": "header",
+                        "description": "Token webhook do hệ thống cung cấp cho GHN. Có thể gửi bằng header này, X-Webhook-Token, Authorization: Bearer token, hoặc field token trong body.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "webhook-secret-token"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "order_code"
+                                ],
+                                "properties": {
+                                    "order_code": {
+                                        "type": "string",
+                                        "example": "5E3NK3RS"
+                                    },
+                                    "token": {
+                                        "type": "string",
+                                        "example": "webhook-secret-token",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Cập nhật trạng thái đơn hàng thành công hoặc webhook status không cần cập nhật",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "ghn_status": {
+                                                    "type": "string",
+                                                    "example": "picked"
+                                                },
+                                                "old_status": {
+                                                    "type": "string",
+                                                    "example": "CONFIRMED"
+                                                },
+                                                "new_status": {
+                                                    "type": "string",
+                                                    "example": "SHIPPING"
+                                                },
+                                                "status_changed": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "order": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "user_id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "status": {
+                                                            "type": "string",
+                                                            "example": "SHIPPING"
+                                                        },
+                                                        "ghn_order_code": {
+                                                            "type": "string",
+                                                            "example": "5E3NK3RS"
+                                                        },
+                                                        "total_price": {
+                                                            "type": "number",
+                                                            "format": "float",
+                                                            "example": 300000
+                                                        },
+                                                        "discount_price": {
+                                                            "type": "number",
+                                                            "format": "float",
+                                                            "example": 0
+                                                        },
+                                                        "ship_price": {
+                                                            "type": "number",
+                                                            "format": "float",
+                                                            "example": 30000
+                                                        },
+                                                        "discount_ship_price": {
+                                                            "type": "number",
+                                                            "format": "float",
+                                                            "example": 0
+                                                        },
+                                                        "final_price": {
+                                                            "type": "number",
+                                                            "format": "float",
+                                                            "example": 330000
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Không tìm thấy đơn hàng theo mã vận đơn GHN",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Thiếu mã vận đơn GHN",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 422
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Missing GHN order code."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token webhook không hợp lệ",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 401
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invalid GHN webhook token."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/products": {
             "get": {
                 "tags": [
