@@ -17,7 +17,7 @@ return new class extends Migration
             $table->text('comment')->nullable();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('order_detail_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('order_detail_id')->constrained()->cascadeOnDelete(); 
             $table->timestamps();
         });
 

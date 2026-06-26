@@ -23,4 +23,9 @@ class OrderDetail extends Model
     {
         return $this->belongsTo(ProductVariant::class);
     }
+
+    public function review()
+    {
+        return $this->belongsTo(Review::class);
+    }
 }

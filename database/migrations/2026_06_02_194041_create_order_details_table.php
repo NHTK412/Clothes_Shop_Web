@@ -18,6 +18,7 @@ return new class extends Migration
             $table->decimal('unit_discount_price', 10, 2)->nullable();
             $table->foreignId('order_id')->constrained()->cascadeOnDelete();
             $table->foreignId('product_variant_id')->constrained();
+            $table->foreignId('review_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
         });
     }

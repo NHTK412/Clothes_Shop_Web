@@ -87,6 +87,7 @@ Route::middleware('auth:api')->prefix('order')->group(function () {
     Route::get('/', [OrderController::class, 'index'])->name('order.index');
     Route::get('/{order}', [OrderController::class, 'show'])->name('order.show');
     Route::patch('/{order}/cancel', [OrderController::class, 'cancel'])->name('order.cancel');
+    Route::post('/{order}/{orderDetail}/review', [OrderController::class, 'review'])->name('order.review');
 });
 
 Route::middleware('auth:api')->prefix('upload')->group(function () {

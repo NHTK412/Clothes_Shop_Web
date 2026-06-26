@@ -311,7 +311,7 @@ class OrderService
 
     public function getOrderById(User $user, int $orderId)
     {
-        return $user->orders()->with(['orderDetails.productVariant.product', 'payment'])->findOrFail($orderId);
+        return $user->orders()->with(['orderDetails.productVariant.product', 'payment', 'orderDetails.review'])->findOrFail($orderId);
     }
 
     public function cancelOrder(User $user, int $orderId): Order
@@ -352,6 +352,43 @@ class OrderService
             $order->save();
 
             return $order;
+        });
+    }
+
+    public function reviewOrderDetail(User $user, int $orderId, int $orderDetailId, int $rating, ?string $comment = null, array $imagePaths = [])
+    {
+        return DB::transaction(function () use ($user, $orderId, $orderDetailId, $rating, $comment, $imagePaths) {
+            $order = $user->orders()->with('orderDetails')->findOrFail($orderId);
+
+            if ($order->status !== 'COMPLETED') {
+                throw ValidationException::withMessages([
+                    'order' => 'You can only review delivered orders.',
+                ]);
+            }
+
+            $orderDetail = $order->orderDetails()->findOrFail($orderDetailId);
+
+            if ($orderDetail->review) {
+                throw ValidationException::withMessages([
+                    'review' => 'You have already reviewed this order detail.',
+                ]);
+            }
+
+            $review = $orderDetail->review()->create([
+                'user_id' => $user->id,
+                'product_id' => $orderDetail->product_variant_id,
+                'rating' => $rating,
+                'comment' => $comment,
+                'order_detail_id' => $orderDetail->id,
+            ]);
+
+            foreach ($imagePaths as $path) {
+                $review->images()->create([
+                    'image_path' => $path,
+                ]);
+            }
+
+            return $review->load('images');
         });
     }
 }
