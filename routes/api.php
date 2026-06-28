@@ -125,6 +125,7 @@ Route::middleware('auth:api')->prefix('voucher')->group(function () {
 });
 
 Route::prefix('promotion')->group(function () {
+    Route::get('/', [PromotionController::class, 'index'])->name('promotion.index');
     Route::get('/first', [PromotionController::class, 'first'])->name('promotion.first');
     Route::post('/', [PromotionController::class, 'store'])->name('promotion.store');
     Route::put('/{promotion}', [PromotionController::class, 'update'])->name('promotion.update');

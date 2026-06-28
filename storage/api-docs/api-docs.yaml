@@ -2840,6 +2840,186 @@ paths:
       security:
         -
           bearerAuth: []
+  /api/promotion:
+    get:
+      tags:
+        - 'Khuyến mãi'
+      summary: 'Danh sách khuyến mãi'
+      description: 'Lấy danh sách khuyến mãi có phân trang, tìm kiếm và lọc trạng thái. Kết quả bao gồm các sản phẩm thuộc từng khuyến mãi.'
+      operationId: dcfc9439d38c274e2c3652425f30a082
+      parameters:
+        -
+          name: page
+          in: query
+          description: 'Trang hiện tại.'
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          example: 1
+        -
+          name: per_page
+          in: query
+          description: 'Số khuyến mãi trên mỗi trang, tối đa 100.'
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+            minimum: 1
+          example: 20
+        -
+          name: q
+          in: query
+          description: 'Tìm kiếm theo tên hoặc mô tả khuyến mãi.'
+          required: false
+          schema:
+            type: string
+            maxLength: 255
+          example: 'mùa hè'
+        -
+          name: is_active
+          in: query
+          description: 'Lọc theo trạng thái bật hoặc tắt của khuyến mãi.'
+          required: false
+          schema:
+            type: boolean
+          example: true
+        -
+          name: status
+          in: query
+          description: 'Lọc theo thời gian diễn ra khuyến mãi.'
+          required: false
+          schema:
+            type: string
+            enum:
+              - upcoming
+              - active
+              - expired
+          example: active
+      responses:
+        200:
+          description: 'Lấy danh sách khuyến mãi thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: 'Khuyến mãi mùa hè'
+                            description:
+                              type: string
+                              example: 'Giảm giá các sản phẩm mùa hè'
+                              nullable: true
+                            discount_amount:
+                              type: number
+                              format: float
+                              example: 20
+                            discount_type:
+                              type: string
+                              example: percentage
+                              enum:
+                                - percentage
+                                - fixed
+                            start_date:
+                              type: string
+                              format: date-time
+                              example: '2026-06-01T00:00:00.000000Z'
+                            end_date:
+                              type: string
+                              format: date-time
+                              example: '2026-06-30T23:59:59.000000Z'
+                            is_active:
+                              type: boolean
+                              example: true
+                            products:
+                              type: array
+                              items:
+                                properties:
+                                  id:
+                                    type: integer
+                                    example: 10
+                                  name:
+                                    type: string
+                                    example: 'Áo thun basic'
+                                  price:
+                                    type: number
+                                    format: float
+                                    example: 199000
+                                  discount_price:
+                                    type: number
+                                    format: float
+                                    example: 159200
+                                    nullable: true
+                                  image:
+                                    type: string
+                                    example: 'https://cdn.example.com/products/ao-thun.jpg'
+                                    nullable: true
+                                type: object
+                            created_at:
+                              type: string
+                              format: date-time
+                            updated_at:
+                              type: string
+                              format: date-time
+                          type: object
+                      pagination:
+                        properties:
+                          page:
+                            type: integer
+                            example: 1
+                          limit:
+                            type: integer
+                            example: 20
+                          totalItems:
+                            type: integer
+                            example: 25
+                          totalPages:
+                            type: integer
+                            example: 2
+                        type: object
+                    type: object
+                type: object
+        422:
+          description: 'Tham số lọc không hợp lệ'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The selected status is invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
   /api/upload:
     post:
       tags:
@@ -3439,6 +3619,8 @@ tags:
     description: 'Sản phẩm'
   - name: 'Quản lý tồn kho'
     description: 'Quản lý tồn kho'
+  - name: 'Khuyến mãi'
+    description: 'Khuyến mãi'
   - name: Upload
     description: Upload
   - name: 'Thông tin cá nhân'
