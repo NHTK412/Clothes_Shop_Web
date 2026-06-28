@@ -321,7 +321,9 @@ class OrderService
 
     public function getOrderById(User $user, int $orderId)
     {
-        return $user->orders()->with(['orderDetails.productVariant.product', 'payment', 'orderDetails.review'])->findOrFail($orderId);
+        return $user->orders()
+            ->with(['orderDetails.productVariant.product', 'payment', 'orderDetails.review'])
+            ->findOrFail($orderId);
     }
 
     public function cancelOrder(User $user, int $orderId): Order
@@ -454,5 +456,62 @@ class OrderService
 
             return $review->load('images');
         });
+    }
+
+    public function syncOrders(): int
+    {
+        $thresholdTime = now()->subMinutes(15);
+        $cancelledCount = 0;
+
+        Order::query()
+            ->where('status', 'PENDING_PAYMENT')
+            ->where('created_at', '<=', $thresholdTime)
+            ->select('id')
+            ->chunkById(100, function ($orders) use ($thresholdTime, &$cancelledCount) {
+                foreach ($orders as $candidate) {
+                    $cancelled = DB::transaction(function () use ($candidate, $thresholdTime) {
+                        $order = Order::query()
+                            ->whereKey($candidate->id)
+                            ->where('status', 'PENDING_PAYMENT')
+                            ->where('created_at', '<=', $thresholdTime)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (! $order) {
+                            return false;
+                        }
+
+                        if ($order->ghn_order_code) {
+                            $this->cancelGhnOrder($order->ghn_order_code);
+                        }
+
+                        $details = $order->orderDetails()
+                            ->orderBy('product_variant_id')
+                            ->get();
+
+                        foreach ($details as $detail) {
+                            $variant = $detail->productVariant()
+                                ->lockForUpdate()
+                                ->first();
+
+                            if ($variant) {
+                                $variant->increment('stock', $detail->quantity);
+                            }
+                        }
+
+                        $order->update([
+                            'status' => 'CANCELLED',
+                        ]);
+
+                        return true;
+                    });
+
+                    if ($cancelled) {
+                        $cancelledCount++;
+                    }
+                }
+            });
+
+        return $cancelledCount;
     }
 }

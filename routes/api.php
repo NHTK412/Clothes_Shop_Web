@@ -112,4 +112,5 @@ Route::prefix('promotion')->group(function () {
     Route::get('/first', [PromotionController::class, 'first'])->name('promotion.first');
     Route::post('/', [PromotionController::class, 'store'])->name('promotion.store');
     Route::put('/{promotion}', [PromotionController::class, 'update'])->name('promotion.update');
+    Route::delete('/{promotion}', [PromotionController::class, 'destroy'])->name('promotion.destroy');
 });

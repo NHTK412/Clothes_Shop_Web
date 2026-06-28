@@ -108,6 +108,16 @@ class VnpayController extends Controller
 
         $order = $this->orderService->getOrderById($request->user(), $validated['order_id']);
 
+        // Chỉ cho phép tạo URL thanh toán nếu đơn hàng đang ở trạng thái PENDING_PAYMENT
+        if ($order->status !== 'PENDING_PAYMENT') {
+            return response()->json([
+                'status' => 422,
+                'success' => false,
+                'message' => 'Order is not in a valid state for payment.',
+                'data' => null,
+            ], 422);
+        }
+
         $payment = $this->vnpayService->createPaymentUrl(
             $order,
             $request->ip(),

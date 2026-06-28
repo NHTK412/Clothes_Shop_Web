@@ -11,3 +11,7 @@ Artisan::command('inspire', function () {
 Schedule::command('promotions:sync')
     ->everyMinute()
     ->withoutOverlapping();
+
+Schedule::command('app:sync-order')
+    ->everyMinute()
+    ->withoutOverlapping();

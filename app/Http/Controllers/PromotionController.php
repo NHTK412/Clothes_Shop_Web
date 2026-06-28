@@ -69,4 +69,16 @@ class PromotionController extends Controller
             'data' => $this->promotionService->update($promotion, $data),
         ]);
     }
+
+    public function destroy(Promotion $promotion): JsonResponse
+    {
+        $this->promotionService->delete($promotion);
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => true,
+        ]);
+    }
 }

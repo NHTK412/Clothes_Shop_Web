@@ -242,4 +242,13 @@ class PromotionService
 
         return round(min(max((float) $discount, 0), $originalPrice), 2);
     }
+
+    public function delete(Promotion $promotion): void
+    {
+        DB::transaction(function () use ($promotion) {
+            // $promotion->products()->detach();
+            // $promotion->delete();
+            $promotion->update(['is_active' => false]);
+        }, 3);
+    }
 }
