@@ -28,6 +28,7 @@ class ProductController extends Controller
             new OA\Parameter(name: 'min_price', in: 'query', required: false, schema: new OA\Schema(type: 'number'), example: 100000),
             new OA\Parameter(name: 'max_price', in: 'query', required: false, schema: new OA\Schema(type: 'number'), example: 500000),
             new OA\Parameter(name: 'in_stock', in: 'query', required: false, schema: new OA\Schema(type: 'boolean'), example: true),
+            new OA\Parameter(name: 'promotionId', in: 'query', required: false, schema: new OA\Schema(type: 'integer'), example: 1),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Lấy danh sách sản phẩm thành công'),
@@ -44,9 +45,15 @@ class ProductController extends Controller
         $maxPrice = $request->query('max_price');
         $inStock = $request->boolean('in_stock', false);
         $attrs = $request->query('attr', []); // e.g. attr[color]=blue&attr[size]=M
+        $promotionId = $request->query('promotionId');
 
         $query = Product::with(['variants.attributeValues', 'categories']);
 
+        if ($promotionId !== null && $promotionId !== '') {
+            $query->whereHas('promotions', function ($promotionQuery) use ($promotionId) {
+                $promotionQuery->where('promotions.id', (int) $promotionId);
+            });
+        }
 
         if ($category) {
             $query->whereHas('categories', function ($qcat) use ($category) {

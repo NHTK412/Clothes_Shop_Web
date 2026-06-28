@@ -17,7 +17,7 @@ return new class extends Migration
             $table->decimal('price', 10, 2);
             $table->decimal('discount_price', 10, 2)->nullable();
             $table->integer('stock')->default(0);
-            $table->string('image')->nullable();
+            $table->string('image')->nullable()->default('https://down-vn.img.susercontent.com/file/1234b2a2d4ccbcdc4357c818cf58a1f7');
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
         });

@@ -8,6 +8,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\GhnController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\VnpayController;
@@ -105,4 +106,10 @@ Route::middleware('auth:api')->prefix('voucher')->group(function () {
     Route::get('/{voucher}', [VoucherController::class, 'show'])->name('voucher.show');
     // Route::put('/{voucher}', [VoucherController::class, 'update'])->name('voucher.update');
     // Route::delete('/{voucher}', [VoucherController::class, 'destroy'])->name('voucher.destroy');
+});
+
+Route::prefix('promotion')->group(function () {
+    Route::get('/first', [PromotionController::class, 'first'])->name('promotion.first');
+    Route::post('/', [PromotionController::class, 'store'])->name('promotion.store');
+    Route::put('/{promotion}', [PromotionController::class, 'update'])->name('promotion.update');
 });

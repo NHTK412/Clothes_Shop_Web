@@ -23,6 +23,13 @@ return new class extends Migration
             $table->date('expiry_date');
             $table->timestamps();
         });
+
+        Schema::table('orders', function (Blueprint $table) {
+            $table->foreign('voucher_id')
+                ->references('id')
+                ->on('vouchers')
+                ->nullOnDelete();
+        });
     }
 
     /**
@@ -30,6 +37,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('orders', function (Blueprint $table) {
+            $table->dropForeign(['voucher_id']);
+        });
+
         Schema::dropIfExists('vouchers');
     }
 };

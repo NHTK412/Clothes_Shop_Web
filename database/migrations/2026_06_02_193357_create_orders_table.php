@@ -30,7 +30,9 @@ return new class extends Migration
             $table->string('ghn_order_code')->nullable();
             $table->timestamps();
 
-            $table->foreignId('voucher_id')->nullable()->constrained('vouchers');
+            // The vouchers table is created by a later migration. Its migration
+            // adds the foreign key after that table exists.
+            $table->foreignId('voucher_id')->nullable();
             $table->string('voucher_code')->nullable();
             $table->decimal('voucher_discount_amount', 10, 2)->nullable();
             $table->decimal('voucher_max_discount_amount', 10, 2)->nullable();

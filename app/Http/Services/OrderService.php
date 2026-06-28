@@ -18,9 +18,10 @@ class OrderService
         User $user,
         int $addressId,
         string $paymentMethod = 'COD',
-        ?string $giftCode = null
+        ?string $giftCode = null,
+        ?float $expectedProductTotal = null
     ): Order {
-        return DB::transaction(function () use ($user, $addressId, $paymentMethod, $giftCode) {
+        return DB::transaction(function () use ($user, $addressId, $paymentMethod, $giftCode, $expectedProductTotal) {
             $address = Address::where('user_id', $user->id)->findOrFail($addressId);
 
             $cart = Cart::with('items.productVariant.product')
@@ -38,7 +39,7 @@ class OrderService
             $orderDetails = [];
             $shippingItems = [];
 
-            foreach ($cart->items as $item) {
+            foreach ($cart->items->sortBy('product_variant_id') as $item) {
                 $variant = $item->productVariant()->lockForUpdate()->first();
 
                 if (! $variant) {
@@ -75,6 +76,15 @@ class OrderService
 
                 $variant->stock -= $item->quantity;
                 $variant->save();
+            }
+
+            if (
+                $expectedProductTotal !== null
+                && abs($totalPrice - $expectedProductTotal) >= 0.01
+            ) {
+                throw ValidationException::withMessages([
+                    'expected_product_total' => 'Product prices have changed. Please refresh the cart and confirm again.',
+                ]);
             }
 
             $orderStatus = $paymentMethod === 'COD' ? 'CONFIRMED' : 'PENDING_PAYMENT';

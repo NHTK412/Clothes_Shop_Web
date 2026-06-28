@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('name')->nullable();
             $table->string('phone')->nullable()->unique();
             $table->string('password')->nullable();
-            $table->string('avatar')->nullable();
+            $table->string('avatar')->nullable()->default('https://framerusercontent.com/images/afwVSvONNQ31o5KZC84R5MAGvig.webp');
             $table->enum('role', [
                 'ROLE_ADMIN',
                 'ROLE_CUSTOMER',
@@ -27,7 +27,7 @@ return new class extends Migration
         });
 
         Schema::create('oauth_providers', function (Blueprint $table) {
-            $table->id()->primary();
+            $table->id();
             $table->enum('provider', [
                 'GOOGLE',
             ])->default('GOOGLE');
@@ -53,9 +53,9 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('users');
         Schema::dropIfExists('oauth_providers');
         Schema::dropIfExists('sessions');
         Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
     }
 };

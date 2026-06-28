@@ -34,6 +34,14 @@ class OrderController extends Controller
                     new OA\Property(property: 'address_id', type: 'integer', example: 1),
                     new OA\Property(property: 'gift_code', type: 'string', nullable: true, example: null),
                     new OA\Property(property: 'payment_method', type: 'string', enum: ['COD', 'VNPAY'], example: 'COD'),
+                    new OA\Property(
+                        property: 'expected_product_total',
+                        description: 'Tổng tiền sản phẩm FE đang hiển thị, chưa gồm phí vận chuyển và voucher',
+                        type: 'number',
+                        format: 'float',
+                        nullable: true,
+                        example: 298000
+                    ),
                 ],
                 type: 'object'
             )
@@ -140,13 +148,17 @@ class OrderController extends Controller
                 }),
             ],
             'payment_method' => 'nullable|in:COD,VNPAY',
+            'expected_product_total' => 'nullable|numeric|min:0',
         ]);
 
         $order = $this->orderService->createOrder(
             $request->user(),
             $validated['address_id'],
             $validated['payment_method'] ?? 'COD',
-            $validated['gift_code'] ?? null
+            $validated['gift_code'] ?? null,
+            isset($validated['expected_product_total'])
+                ? (float) $validated['expected_product_total']
+                : null
         );
 
         return response()->json([
@@ -572,10 +584,9 @@ class OrderController extends Controller
             'status' => 201,
             'success' => true,
             'message' => 'Đánh giá sản phẩm thành công.',
-            'data' => $review
+            'data' => $review,
         ], 201);
     }
-
 
     #[OA\Post(
         path: '/api/ghn/webhook/order-status',
