@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AttributeTypeController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\GhnController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
@@ -37,6 +38,7 @@ Route::get('/products/{id}', [ProductController::class, 'show'])->name('products
 // Admin product management
 Route::post('/products', [ProductController::class, 'store'])->name('products.store');
 Route::put('/products/{id}', [ProductController::class, 'update'])->name('products.update');
+Route::delete('/products/{id}', [ProductController::class, 'destroy'])->name('products.destroy');
 // Category CRUD
 Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
 Route::get('/categories/{id}', [CategoryController::class, 'show'])->name('categories.show');
@@ -79,6 +81,20 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/addresses/{address}', [AddressController::class, 'update'])->name('addresses.update');
     Route::delete('/addresses/{address}', [AddressController::class, 'destroy'])->name('addresses.destroy');
     Route::put('/addresses/{address}/default', [AddressController::class, 'setDefault'])->name('addresses.default');
+
+    Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
+    Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
+    Route::patch('/customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
+    Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');
+
+    Route::get('/admin/orders', [OrderController::class, 'adminIndex'])->name('admin.orders.index');
+    Route::get('/admin/orders/summary', [OrderController::class, 'adminOrderSummary'])->name('admin.orders.summary');
+    Route::get('/admin/orders/{order}', [OrderController::class, 'adminShow'])->name('admin.orders.show');
+    Route::get('/admin/customers/{customer}/orders', [OrderController::class, 'adminOrdersByCustomer'])->name('admin.customers.orders.index');
+    Route::get('/admin/inventory', [ProductController::class, 'adminInventoryIndex'])->name('admin.inventory.index');
+    Route::patch('/admin/inventory/{productVariant}', [ProductController::class, 'adminInventoryUpdate'])->name('admin.inventory.update');
+    Route::post('/admin/inventory/stock-in', [ProductController::class, 'adminInventoryStockIn'])->name('admin.inventory.stock-in');
+    Route::post('/admin/inventory/stock-out', [ProductController::class, 'adminInventoryStockOut'])->name('admin.inventory.stock-out');
 
     Route::get('/cart/items', [CartController::class, 'getItems'])->name('cart.items.index');
     Route::get('/cart/items/count', [CartController::class, 'getCountItem'])->name('cart.items.count');

@@ -115,16 +115,6 @@ class CategoryController extends Controller
     )]
     public function store(Request $request)
     {
-        $user = $request->user();
-        if (!$user || (($user->role ?? null) !== 'admin')) {
-            return response()->json([
-                'status' => 403,
-                'success' => false,
-                'message' => 'Forbidden: admin only',
-                'data' => null,
-            ], 403);
-        }
-
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'parent_id' => 'nullable|integer|exists:categories,id',
@@ -172,16 +162,6 @@ class CategoryController extends Controller
     )]
     public function update(Request $request, $id)
     {
-        $user = $request->user();
-        if (!$user || (($user->role ?? null) !== 'admin')) {
-            return response()->json([
-                'status' => 403,
-                'success' => false,
-                'message' => 'Forbidden: admin only',
-                'data' => null,
-            ], 403);
-        }
-
         $cat = Category::findOrFail($id);
 
         $validated = $request->validate([
@@ -220,16 +200,6 @@ class CategoryController extends Controller
     )]
     public function destroy(Request $request, $id)
     {
-        $user = $request->user();
-        if (!$user || (($user->role ?? null) !== 'admin')) {
-            return response()->json([
-                'status' => 403,
-                'success' => false,
-                'message' => 'Forbidden: admin only',
-                'data' => null,
-            ], 403);
-        }
-
         $cat = Category::findOrFail($id);
         $cat->delete();
 

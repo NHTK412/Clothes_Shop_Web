@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Cloudinary\Cloudinary;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
+use Throwable;
 
 class UploadController extends Controller
 {
@@ -87,31 +88,54 @@ class UploadController extends Controller
             'image' => 'required|image|mimes:jpg,jpeg,png,webp',
         ]);
 
-        $cloudinary = new Cloudinary([
-            'cloud' => [
-                'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
-                'api_key' => env('CLOUDINARY_API_KEY'),
-                'api_secret' => env('CLOUDINARY_API_SECRET'),
-            ],
-            'url' => [
-                'secure' => true,
-            ],
-        ]);
+        $cloudinaryConfig = config('services.cloudinary', []);
+        $cloudName = trim((string) ($cloudinaryConfig['cloud_name'] ?? ''));
+        $apiKey = trim((string) ($cloudinaryConfig['api_key'] ?? ''));
+        $apiSecret = trim((string) ($cloudinaryConfig['api_secret'] ?? ''));
 
-        $result = $cloudinary->uploadApi()->upload(
-            $request->file('image')->getRealPath(),
-            [
-                'folder' => 'clothes_shop/products',
-            ]
-        );
+        if ($cloudName === '' || $apiKey === '' || $apiSecret === '') {
+            return response()->json([
+                'status' => 500,
+                'success' => false,
+                'message' => 'Cloudinary chưa được cấu hình. Vui lòng điền CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY và CLOUDINARY_API_SECRET vào file .env.',
+                'data' => null,
+            ], 500);
+        }
 
-        return response()->json([
-            'status' => 200,
-            'success' => true,
-            'data' => [
-                'image_url' => $result['secure_url'],
-                'public_id' => $result['public_id'],
-            ],
-        ]);
+        try {
+            $cloudinary = new Cloudinary([
+                'cloud' => [
+                    'cloud_name' => $cloudName,
+                    'api_key' => $apiKey,
+                    'api_secret' => $apiSecret,
+                ],
+                'url' => [
+                    'secure' => (bool) ($cloudinaryConfig['secure'] ?? true),
+                ],
+            ]);
+
+            $result = $cloudinary->uploadApi()->upload(
+                $request->file('image')->getRealPath(),
+                [
+                    'folder' => 'clothes_shop/products',
+                ]
+            );
+
+            return response()->json([
+                'status' => 200,
+                'success' => true,
+                'data' => [
+                    'image_url' => $result['secure_url'],
+                    'public_id' => $result['public_id'],
+                ],
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => 500,
+                'success' => false,
+                'message' => 'Không thể upload ảnh lên Cloudinary: ' . $e->getMessage(),
+                'data' => null,
+            ], 500);
+        }
     }
 }

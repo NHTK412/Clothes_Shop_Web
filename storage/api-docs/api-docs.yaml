@@ -996,6 +996,131 @@ paths:
       security:
         -
           bearerAuth: []
+  /api/customers:
+    get:
+      tags:
+        - 'Khách hàng'
+      summary: 'Danh sách khách hàng'
+      description: 'Danh sách khách hàng dành cho quản trị viên.'
+      operationId: listCustomers
+      parameters:
+        -
+          name: search
+          in: query
+          description: 'Tìm theo tên, email hoặc số điện thoại'
+          required: false
+          schema:
+            type: string
+        -
+          name: status
+          in: query
+          description: 'Lọc theo trạng thái'
+          required: false
+          schema:
+            type: string
+            enum:
+              - ACTIVE
+              - INACTIVE
+        -
+          name: per_page
+          in: query
+          description: 'Số lượng mỗi trang'
+          required: false
+          schema:
+            type: integer
+            default: 15
+      responses:
+        200:
+          description: 'Lấy danh sách khách hàng thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+      security:
+        -
+          bearerAuth: []
+  '/api/customers/{customer}':
+    get:
+      tags:
+        - 'Khách hàng'
+      summary: 'Chi tiết khách hàng'
+      description: 'Xem thông tin chi tiết một khách hàng.'
+      operationId: showCustomer
+      responses:
+        200:
+          description: 'Lấy thông tin khách hàng thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy khách hàng'
+      security:
+        -
+          bearerAuth: []
+    delete:
+      tags:
+        - 'Khách hàng'
+      summary: 'Vô hiệu hóa khách hàng'
+      description: 'Đặt trạng thái khách hàng thành INACTIVE.'
+      operationId: deleteCustomer
+      responses:
+        200:
+          description: 'Vô hiệu hóa khách hàng thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy khách hàng'
+      security:
+        -
+          bearerAuth: []
+    patch:
+      tags:
+        - 'Khách hàng'
+      summary: 'Cập nhật khách hàng'
+      description: 'Cập nhật thông tin trạng thái, vai trò hoặc số điện thoại của khách hàng.'
+      operationId: updateCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                name:
+                  type: string
+                  example: 'Nguyễn Văn A'
+                  nullable: true
+                phone:
+                  type: string
+                  example: '0901234567'
+                  nullable: true
+                status:
+                  type: string
+                  example: ACTIVE
+                  enum:
+                    - ACTIVE
+                    - INACTIVE
+                role:
+                  type: string
+                  example: ROLE_CUSTOMER
+                  enum:
+                    - ROLE_CUSTOMER
+                    - ROLE_ADMIN
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật khách hàng thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
   /api/ghn/provinces:
     get:
       tags:
@@ -1587,6 +1712,250 @@ paths:
                     example: null
                     nullable: true
                 type: object
+      security:
+        -
+          bearerAuth: []
+  /api/admin/orders:
+    get:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Danh sách đơn hàng cho quản trị viên'
+      description: 'Lấy toàn bộ đơn hàng trong hệ thống cho quản trị viên, hỗ trợ tìm kiếm, lọc theo trạng thái và phân trang.'
+      operationId: adminListOrders
+      parameters:
+        -
+          name: search
+          in: query
+          description: 'Tìm theo tên, email hoặc số điện thoại khách hàng.'
+          required: false
+          schema:
+            type: string
+        -
+          name: status
+          in: query
+          description: 'Lọc theo trạng thái đơn hàng.'
+          required: false
+          schema:
+            type: string
+            enum:
+              - PENDING_PAYMENT
+              - CONFIRMED
+              - SHIPPING
+              - COMPLETED
+              - CANCELLED
+              - RETURNED
+        -
+          name: page
+          in: query
+          description: 'Trang hiện tại.'
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        -
+          name: per_page
+          in: query
+          description: 'Số đơn hàng mỗi trang.'
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+          example: 15
+      responses:
+        200:
+          description: 'Lấy danh sách đơn hàng thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+      security:
+        -
+          bearerAuth: []
+  '/api/admin/orders/{order}':
+    get:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Chi tiết đơn hàng cho quản trị viên'
+      description: 'Xem toàn bộ thông tin một đơn hàng trong hệ thống dành cho quản trị viên.'
+      operationId: adminShowOrder
+      parameters:
+        -
+          name: order
+          in: path
+          description: 'ID đơn hàng.'
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Lấy thông tin đơn hàng thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy đơn hàng'
+      security:
+        -
+          bearerAuth: []
+  /api/admin/orders/summary:
+    get:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Tổng kết doanh thu đơn hàng'
+      description: 'Lấy thống kê tổng doanh thu từ các đơn hàng đã hoàn thành, hỗ trợ lọc theo khoảng thời gian.'
+      operationId: adminOrderSummary
+      parameters:
+        -
+          name: from_date
+          in: query
+          description: 'Ngày bắt đầu (YYYY-MM-DD)'
+          required: false
+          schema:
+            type: string
+            format: date
+        -
+          name: to_date
+          in: query
+          description: 'Ngày kết thúc (YYYY-MM-DD)'
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        200:
+          description: 'Lấy thống kê thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      total_revenue:
+                        type: number
+                        format: float
+                        example: 50000000
+                      total_orders:
+                        type: integer
+                        example: 150
+                      average_order_value:
+                        type: number
+                        format: float
+                        example: 333333.33
+                      from_date:
+                        type: string
+                        format: date
+                        example: '2026-06-01'
+                      to_date:
+                        type: string
+                        format: date
+                        example: '2026-06-28'
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+      security:
+        -
+          bearerAuth: []
+  '/api/admin/customers/{customer}/orders':
+    get:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Lấy danh sách đơn hàng của khách hàng'
+      description: 'Lấy danh sách tất cả đơn hàng của một khách hàng cụ thể, hỗ trợ lọc theo trạng thái và phân trang.'
+      operationId: adminOrdersByCustomer
+      parameters:
+        -
+          name: customer
+          in: path
+          description: 'ID khách hàng.'
+          required: true
+          schema:
+            type: integer
+          example: 3
+        -
+          name: status
+          in: query
+          description: 'Lọc theo trạng thái đơn hàng'
+          required: false
+          schema:
+            type: string
+            enum:
+              - PENDING_PAYMENT
+              - CONFIRMED
+              - SHIPPING
+              - COMPLETED
+              - CANCELLED
+              - RETURNED
+        -
+          name: page
+          in: query
+          description: 'Số trang (mặc định 1)'
+          required: false
+          schema:
+            type: integer
+        -
+          name: per_page
+          in: query
+          description: 'Số bản ghi trên trang (mặc định 15, tối đa 100)'
+          required: false
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 'Lấy danh sách thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                      pagination:
+                        properties:
+                          current_page:
+                            type: integer
+                          per_page:
+                            type: integer
+                          total:
+                            type: integer
+                          last_page:
+                            type: integer
+                        type: object
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
       security:
         -
           bearerAuth: []
@@ -2294,6 +2663,117 @@ paths:
       security:
         -
           bearerAuth: []
+  '/api/admin/inventory/{productVariant}':
+    patch:
+      tags:
+        - 'Quản lý tồn kho'
+      summary: 'Cập nhật tồn kho biến thể sản phẩm'
+      operationId: 5ebba9d319c47669e65c08e1b527298f
+      parameters:
+        -
+          name: productVariant
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - stock
+              properties:
+                stock:
+                  type: integer
+                  example: 25
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật tồn kho thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  /api/admin/inventory/stock-in:
+    post:
+      tags:
+        - 'Quản lý tồn kho'
+      summary: 'Nhập kho cho biến thể sản phẩm'
+      operationId: 42b6c60feb0efc53ee78cd7b1dba4582
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - variant_id
+                - quantity
+              properties:
+                variant_id:
+                  type: integer
+                  example: 12
+                quantity:
+                  type: integer
+                  example: 10
+                note:
+                  type: string
+                  example: 'Nhập hàng từ nhà cung cấp'
+              type: object
+      responses:
+        200:
+          description: 'Nhập kho thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  /api/admin/inventory/stock-out:
+    post:
+      tags:
+        - 'Quản lý tồn kho'
+      summary: 'Xuất kho cho biến thể sản phẩm'
+      operationId: 69b90f16073f3329ac60d5da9024e46a
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - variant_id
+                - quantity
+              properties:
+                variant_id:
+                  type: integer
+                  example: 12
+                quantity:
+                  type: integer
+                  example: 3
+                note:
+                  type: string
+                  example: 'Xuất bán cho đơn hàng'
+              type: object
+      responses:
+        200:
+          description: 'Xuất kho thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        422:
+          description: 'Số lượng xuất vượt quá tồn kho'
+      security:
+        -
+          bearerAuth: []
   /api/upload:
     post:
       tags:
@@ -2883,12 +3363,16 @@ tags:
     description: 'Giỏ hàng'
   - name: 'Danh mục'
     description: 'Danh mục'
+  - name: 'Khách hàng'
+    description: 'Khách hàng'
   - name: GHN
     description: GHN
   - name: 'Đơn hàng'
     description: 'Đơn hàng'
   - name: 'Sản phẩm'
     description: 'Sản phẩm'
+  - name: 'Quản lý tồn kho'
+    description: 'Quản lý tồn kho'
   - name: Upload
     description: Upload
   - name: 'Thông tin cá nhân'

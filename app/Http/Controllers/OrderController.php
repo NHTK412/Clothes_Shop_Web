@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Services\OrderService;
 use App\Models\Order;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rule;
@@ -314,6 +315,279 @@ class OrderController extends Controller
                         }),
                     ];
                 }),
+                'pagination' => [
+                    'current_page' => $orders->currentPage(),
+                    'per_page' => $orders->perPage(),
+                    'total' => $orders->total(),
+                    'last_page' => $orders->lastPage(),
+                ],
+            ],
+        ]);
+    }
+
+    #[OA\Get(
+        path: '/api/admin/orders',
+        operationId: 'adminListOrders',
+        summary: 'Danh sách đơn hàng cho quản trị viên',
+        description: 'Lấy toàn bộ đơn hàng trong hệ thống cho quản trị viên, hỗ trợ tìm kiếm, lọc theo trạng thái và phân trang.',
+        security: [['bearerAuth' => []]],
+        tags: ['Đơn hàng'],
+        parameters: [
+            new OA\Parameter(name: 'search', in: 'query', description: 'Tìm theo tên, email hoặc số điện thoại khách hàng.', required: false, schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'status', in: 'query', description: 'Lọc theo trạng thái đơn hàng.', required: false, schema: new OA\Schema(type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'])),
+            new OA\Parameter(name: 'page', in: 'query', description: 'Trang hiện tại.', required: false, schema: new OA\Schema(type: 'integer', minimum: 1), example: 1),
+            new OA\Parameter(name: 'per_page', in: 'query', description: 'Số đơn hàng mỗi trang.', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100), example: 15),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Lấy danh sách đơn hàng thành công'),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+        ]
+    )]
+    public function adminIndex(Request $request)
+    {
+        $this->ensureAdmin($request->user());
+
+        $validated = $request->validate([
+            'search' => 'nullable|string|max:255',
+            'status' => ['nullable', 'string', function ($attribute, $value, $fail) {
+                if ($value !== null && $this->normalizeOrderStatus($value) === null) {
+                    $fail('Trạng thái không hợp lệ.');
+                }
+            }],
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $query = Order::query()->with(['user', 'payment', 'orderDetails.productVariant.product']);
+
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where('email', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if (! empty($validated['status'])) {
+            $query->where('status', $this->normalizeOrderStatus($validated['status']));
+        }
+
+        $orders = $query->orderByDesc('created_at')->paginate($validated['per_page'] ?? 15, ['*'], 'page', $validated['page'] ?? 1);
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'data' => $orders->getCollection()->map(fn (Order $order) => $this->formatOrderForAdminList($order)),
+                'pagination' => [
+                    'current_page' => $orders->currentPage(),
+                    'per_page' => $orders->perPage(),
+                    'total' => $orders->total(),
+                    'last_page' => $orders->lastPage(),
+                ],
+            ],
+        ]);
+    }
+
+    #[OA\Get(
+        path: '/api/admin/orders/{order}',
+        operationId: 'adminShowOrder',
+        summary: 'Chi tiết đơn hàng cho quản trị viên',
+        description: 'Xem toàn bộ thông tin một đơn hàng trong hệ thống dành cho quản trị viên.',
+        security: [['bearerAuth' => []]],
+        tags: ['Đơn hàng'],
+        parameters: [
+            new OA\Parameter(name: 'order', in: 'path', description: 'ID đơn hàng.', required: true, schema: new OA\Schema(type: 'integer'), example: 1),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Lấy thông tin đơn hàng thành công'),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+            new OA\Response(response: 404, description: 'Không tìm thấy đơn hàng'),
+        ]
+    )]
+    public function adminShow(Request $request, Order $order)
+    {
+        $this->ensureAdmin($request->user());
+
+        $order->load(['user', 'payment', 'orderDetails.productVariant.product']);
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => $this->formatOrderForAdminDetail($order),
+        ]);
+    }
+
+    #[OA\Get(
+        path: '/api/admin/orders/summary',
+        operationId: 'adminOrderSummary',
+        summary: 'Tổng kết doanh thu đơn hàng',
+        description: 'Lấy thống kê tổng doanh thu từ các đơn hàng đã hoàn thành, hỗ trợ lọc theo khoảng thời gian.',
+        security: [['bearerAuth' => []]],
+        tags: ['Đơn hàng'],
+        parameters: [
+            new OA\Parameter(name: 'from_date', in: 'query', description: 'Ngày bắt đầu (YYYY-MM-DD)', required: false, schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'to_date', in: 'query', description: 'Ngày kết thúc (YYYY-MM-DD)', required: false, schema: new OA\Schema(type: 'string', format: 'date')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Lấy thống kê thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 200),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, example: null),
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(property: 'total_revenue', type: 'number', format: 'float', example: 50000000),
+                                new OA\Property(property: 'total_orders', type: 'integer', example: 150),
+                                new OA\Property(property: 'average_order_value', type: 'number', format: 'float', example: 333333.33),
+                                new OA\Property(property: 'from_date', type: 'string', format: 'date', example: '2026-06-01'),
+                                new OA\Property(property: 'to_date', type: 'string', format: 'date', example: '2026-06-28'),
+                            ],
+                            type: 'object'
+                        ),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+        ]
+    )]
+    public function adminOrderSummary(Request $request)
+    {
+        $this->ensureAdmin($request->user());
+
+        $validated = $request->validate([
+            'from_date' => 'nullable|date_format:Y-m-d',
+            'to_date' => 'nullable|date_format:Y-m-d',
+        ]);
+
+        $query = Order::query()->where('status', 'COMPLETED');
+
+        $fromDate = $validated['from_date'] ?? null;
+        $toDate = $validated['to_date'] ?? null;
+
+        if ($fromDate) {
+            $query->whereDate('created_at', '>=', $fromDate);
+        }
+
+        if ($toDate) {
+            $query->whereDate('created_at', '<=', $toDate);
+        }
+
+        $totalRevenue = $query->sum('final_price');
+        $totalOrders = $query->count();
+        $averageOrderValue = $totalOrders > 0 ? $totalRevenue / $totalOrders : 0;
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'total_revenue' => (float) $totalRevenue,
+                'total_orders' => (int) $totalOrders,
+                'average_order_value' => (float) $averageOrderValue,
+                'from_date' => $fromDate,
+                'to_date' => $toDate,
+            ],
+        ]);
+    }
+
+    // Lấy danh sách đơn hàng của khách hàng (admin)
+    #[OA\Get(
+        path: '/api/admin/customers/{customer}/orders',
+        operationId: 'adminOrdersByCustomer',
+        summary: 'Lấy danh sách đơn hàng của khách hàng',
+        description: 'Lấy danh sách tất cả đơn hàng của một khách hàng cụ thể, hỗ trợ lọc theo trạng thái và phân trang.',
+        security: [['bearerAuth' => []]],
+        tags: ['Đơn hàng'],
+        parameters: [
+            new OA\Parameter(
+                name: 'customer',
+                description: 'ID khách hàng.',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer'),
+                example: 3
+            ),
+            new OA\Parameter(name: 'status', in: 'query', description: 'Lọc theo trạng thái đơn hàng', required: false, schema: new OA\Schema(type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'])),
+            new OA\Parameter(name: 'page', in: 'query', description: 'Số trang (mặc định 1)', required: false, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'per_page', in: 'query', description: 'Số bản ghi trên trang (mặc định 15, tối đa 100)', required: false, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Lấy danh sách thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 200),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, example: null),
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                                new OA\Property(
+                                    property: 'pagination',
+                                    properties: [
+                                        new OA\Property(property: 'current_page', type: 'integer'),
+                                        new OA\Property(property: 'per_page', type: 'integer'),
+                                        new OA\Property(property: 'total', type: 'integer'),
+                                        new OA\Property(property: 'last_page', type: 'integer'),
+                                    ],
+                                    type: 'object'
+                                ),
+                            ],
+                            type: 'object'
+                        ),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+        ]
+    )]
+    public function adminOrdersByCustomer(Request $request, User $customer)
+    {
+        $this->ensureAdmin($request->user());
+
+        $validated = $request->validate([
+            'status' => ['nullable', 'string', function ($attribute, $value, $fail) {
+                if ($value !== null && $this->normalizeOrderStatus($value) === null) {
+                    $fail('Trạng thái không hợp lệ.');
+                }
+            }],
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $query = Order::query()->where('user_id', $customer->id)->with(['payment', 'orderDetails.productVariant.product']);
+
+        if (! empty($validated['status'])) {
+            $query->where('status', $this->normalizeOrderStatus($validated['status']));
+        }
+
+        $orders = $query->orderByDesc('created_at')->paginate($validated['per_page'] ?? 15, ['*'], 'page', $validated['page'] ?? 1);
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'data' => $orders->getCollection()->map(fn (Order $order) => $this->formatOrderForAdminList($order)),
                 'pagination' => [
                     'current_page' => $orders->currentPage(),
                     'per_page' => $orders->perPage(),
@@ -691,6 +965,97 @@ class OrderController extends Controller
             ),
         ]
     )]
+    private function ensureAdmin(?User $user): void
+    {
+        if (! $user || $user->role !== 'ROLE_ADMIN') {
+            abort(403, 'Chỉ quản trị viên được phép');
+        }
+    }
+
+    private function getAllowedOrderStatuses(): array
+    {
+        return ['pending', 'processing', 'completed', 'cancelled', 'returned'];
+    }
+
+    private function normalizeOrderStatus(?string $status): ?string
+    {
+        if (! $status) {
+            return null;
+        }
+
+        $normalized = strtolower($status);
+
+        return in_array($normalized, $this->getAllowedOrderStatuses(), true) ? $normalized : null;
+    }
+
+    private function formatOrderForAdminList(Order $order): array
+    {
+        return [
+            'id' => $order->id,
+            'user_id' => $order->user_id,
+            'customer' => [
+                'id' => $order->user?->id,
+                'name' => $order->user?->name,
+                'email' => $order->user?->email,
+                'phone' => $order->user?->phone,
+            ],
+            'status' => $order->status,
+            'total_price' => $order->total_price,
+            'discount_price' => $order->discount_price,
+            'final_price' => $order->final_price,
+            'payment_status' => $order->payment?->status,
+            'payment_method' => $order->payment?->method,
+            'created_at' => $order->created_at?->toISOString(),
+            'item_count' => $order->orderDetails->count(),
+        ];
+    }
+
+    private function formatOrderForAdminDetail(Order $order): array
+    {
+        return [
+            'id' => $order->id,
+            'user_id' => $order->user_id,
+            'customer' => [
+                'id' => $order->user?->id,
+                'name' => $order->user?->name,
+                'email' => $order->user?->email,
+                'phone' => $order->user?->phone,
+            ],
+            'status' => $order->status,
+            'total_price' => $order->total_price,
+            'discount_price' => $order->discount_price,
+            'ship_price' => $order->ship_price,
+            'discount_ship_price' => $order->discount_ship_price,
+            'final_price' => $order->final_price,
+            'ghn_order_code' => $order->ghn_order_code,
+            'shipping_address' => [
+                'ward_code' => $order->ward_code,
+                'ward_name' => $order->ward_name,
+                'province_id' => $order->province_id,
+                'province_name' => $order->province_name,
+                'specific_address' => $order->specific_address,
+                'full_name' => $order->full_name,
+                'phone' => $order->phone,
+            ],
+            'payment' => $order->payment ? [
+                'id' => $order->payment->id,
+                'method' => $order->payment->method,
+                'status' => $order->payment->status,
+            ] : null,
+            'order_details' => $order->orderDetails->map(fn ($detail) => [
+                'id' => $detail->id,
+                'product_variant_id' => $detail->product_variant_id,
+                'product_name' => $detail->productVariant?->product?->name,
+                'variant_image' => $detail->productVariant?->image,
+                'quantity' => $detail->quantity,
+                'unit_price' => $detail->unit_price,
+                'unit_discount_price' => $detail->unit_discount_price,
+            ])->values(),
+            'created_at' => $order->created_at?->toISOString(),
+            'updated_at' => $order->updated_at?->toISOString(),
+        ];
+    }
+
     public function update(Request $request)
     {
         $payload = $request->all();

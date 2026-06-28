@@ -43,8 +43,8 @@ class AuthController extends Controller
     public function authenticateApi(LoginRequest $request)
     {
         $credentials = $request->only('email', 'password');
-
-        $token = Auth::attempt($credentials);
+        $guard = Auth::guard('api');
+        $token = $guard->attempt($credentials);
 
         if (! $token) {
             return response()->json([
@@ -58,8 +58,8 @@ class AuthController extends Controller
             'message' => null,
             'data' => [
                 'access_token' => $token,
-                'expires_in' => Auth::factory()->getTTL() * 60,
-                'user' => Auth::user(),
+                'expires_in' => $guard->factory()->getTTL() * 60,
+                'user' => $guard->user(),
             ],
         ], 200);
     }
