@@ -59,6 +59,7 @@ class ProductControllerTest extends TestCase
                 [
                     'sku' => 'SHIRT-BLACK-M',
                     'price' => 199000,
+                    'discount_price' => 179000,
                     'stock' => 10,
                     'image' => $variantImage,
                 ],
@@ -76,11 +77,57 @@ class ProductControllerTest extends TestCase
 
         $this->assertDatabaseHas('product_variants', [
             'sku' => 'SHIRT-BLACK-M',
+            'discount_price' => 179000,
             'image' => $variantImage,
         ]);
         $this->assertDatabaseHas('product_variants', [
             'sku' => 'SHIRT-WHITE-M',
             'image' => $productImage,
+        ]);
+    }
+
+    public function test_update_accepts_the_same_variant_fields_without_requiring_sku_again(): void
+    {
+        $createResponse = $this->postJson('/api/products', [
+            'name' => 'Shirt',
+            'price' => 199000,
+            'image' => 'https://cdn.example.com/products/shirt.jpg',
+            'variants' => [
+                [
+                    'sku' => 'SHIRT-BLACK-L',
+                    'price' => 199000,
+                    'stock' => 10,
+                ],
+            ],
+        ])->assertCreated();
+
+        $productId = $createResponse->json('data.items.id');
+        $variantId = $createResponse->json('data.items.variants.0.id');
+        $variantImage = 'https://cdn.example.com/products/shirt-black-updated.jpg';
+
+        $this->putJson("/api/products/{$productId}", [
+            'name' => 'Updated shirt',
+            'variants' => [
+                [
+                    'id' => $variantId,
+                    'price' => 209000,
+                    'discount_price' => 189000,
+                    'stock' => 7,
+                    'image' => $variantImage,
+                ],
+            ],
+        ])->assertOk()
+            ->assertJsonPath('data.items.name', 'Updated shirt')
+            ->assertJsonPath('data.items.variants.0.discount_price', 189000)
+            ->assertJsonPath('data.items.variants.0.image', $variantImage);
+
+        $this->assertDatabaseHas('product_variants', [
+            'id' => $variantId,
+            'sku' => 'SHIRT-BLACK-L',
+            'price' => 209000,
+            'discount_price' => 189000,
+            'stock' => 7,
+            'image' => $variantImage,
         ]);
     }
 }

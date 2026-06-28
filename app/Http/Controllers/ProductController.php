@@ -464,16 +464,29 @@ class ProductController extends Controller
                     new OA\Property(
                         property: 'variants',
                         type: 'array',
-                        items: new OA\Items(type: 'object'),
-                        example: [
-                            [
-                                'sku' => 'AO-THUN-DEN-M',
-                                'price' => 199000,
-                                'stock' => 10,
-                                'image' => 'https://cdn.example.com/products/ao-thun-den.jpg',
-                                'attribute_value_ids' => [1, 2],
+                        items: new OA\Items(
+                            required: ['sku', 'price'],
+                            properties: [
+                                new OA\Property(property: 'sku', type: 'string', example: 'AO-THUN-DEN-M'),
+                                new OA\Property(property: 'price', type: 'number', format: 'float', minimum: 0, example: 199000),
+                                new OA\Property(property: 'discount_price', type: 'number', format: 'float', minimum: 0, nullable: true, example: 169000),
+                                new OA\Property(property: 'stock', type: 'integer', minimum: 0, default: 0, example: 10),
+                                new OA\Property(
+                                    property: 'image',
+                                    description: 'Ảnh riêng của biến thể. Nếu không truyền, hệ thống sử dụng ảnh sản phẩm.',
+                                    type: 'string',
+                                    nullable: true,
+                                    example: 'https://cdn.example.com/products/ao-thun-den.jpg'
+                                ),
+                                new OA\Property(
+                                    property: 'attribute_value_ids',
+                                    type: 'array',
+                                    items: new OA\Items(type: 'integer'),
+                                    example: [1, 2]
+                                ),
                             ],
-                        ]
+                            type: 'object'
+                        )
                     ),
                 ],
                 type: 'object'
@@ -498,7 +511,13 @@ class ProductController extends Controller
             // categories/variants are accepted flexibly (single id as string/int or arrays)
             'categories' => 'nullable',
             'variants' => 'nullable',
+            'variants.*.sku' => 'sometimes|required|string|max:255',
+            'variants.*.price' => 'nullable|numeric|min:0',
+            'variants.*.discount_price' => 'nullable|numeric|min:0',
+            'variants.*.stock' => 'nullable|integer|min:0',
             'variants.*.image' => 'nullable|string|max:2048',
+            'variants.*.attribute_value_ids' => 'nullable|array',
+            'variants.*.attribute_value_ids.*' => 'integer',
         ]);
 
         $product = new Product;
@@ -655,17 +674,34 @@ class ProductController extends Controller
                     new OA\Property(
                         property: 'variants',
                         type: 'array',
-                        items: new OA\Items(type: 'object'),
-                        example: [
-                            [
-                                'id' => 1,
-                                'sku' => 'AO-THUN-DEN-L',
-                                'price' => 219000,
-                                'stock' => 8,
-                                'image' => 'https://cdn.example.com/products/ao-thun-den.jpg',
-                                'attribute_value_ids' => [1, 3],
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(
+                                    property: 'id',
+                                    description: 'ID biến thể cần cập nhật. Bỏ qua để tạo biến thể mới.',
+                                    type: 'integer',
+                                    example: 1
+                                ),
+                                new OA\Property(property: 'sku', type: 'string', example: 'AO-THUN-DEN-L'),
+                                new OA\Property(property: 'price', type: 'number', format: 'float', minimum: 0, example: 219000),
+                                new OA\Property(property: 'discount_price', type: 'number', format: 'float', minimum: 0, nullable: true, example: 189000),
+                                new OA\Property(property: 'stock', type: 'integer', minimum: 0, example: 8),
+                                new OA\Property(
+                                    property: 'image',
+                                    description: 'Ảnh riêng của biến thể. Truyền null hoặc chuỗi rỗng để dùng ảnh sản phẩm.',
+                                    type: 'string',
+                                    nullable: true,
+                                    example: 'https://cdn.example.com/products/ao-thun-den.jpg'
+                                ),
+                                new OA\Property(
+                                    property: 'attribute_value_ids',
+                                    type: 'array',
+                                    items: new OA\Items(type: 'integer'),
+                                    example: [1, 3]
+                                ),
                             ],
-                        ]
+                            type: 'object'
+                        )
                     ),
                 ],
                 type: 'object'
@@ -693,7 +729,14 @@ class ProductController extends Controller
             // flexible inputs
             'categories' => 'nullable',
             'variants' => 'nullable',
+            'variants.*.id' => 'sometimes|required|integer|exists:product_variants,id',
+            'variants.*.sku' => 'sometimes|required|string|max:255',
+            'variants.*.price' => 'nullable|numeric|min:0',
+            'variants.*.discount_price' => 'nullable|numeric|min:0',
+            'variants.*.stock' => 'nullable|integer|min:0',
             'variants.*.image' => 'nullable|string|max:2048',
+            'variants.*.attribute_value_ids' => 'nullable|array',
+            'variants.*.attribute_value_ids.*' => 'integer',
         ]);
 
         // Update scalar fields
@@ -736,7 +779,7 @@ class ProductController extends Controller
                 }
             } else {
                 $first = reset($varsRaw);
-                if (is_array($first) && array_key_exists('sku', $first)) {
+                if (is_array($first)) {
                     // array of objects => create new variants and assign
                     foreach ($varsRaw as $v) {
                         $pv = null;
