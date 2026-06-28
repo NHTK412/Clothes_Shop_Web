@@ -2846,7 +2846,7 @@ paths:
         - 'Khuyến mãi'
       summary: 'Danh sách khuyến mãi'
       description: 'Lấy danh sách khuyến mãi có phân trang, tìm kiếm và lọc trạng thái. Kết quả bao gồm các sản phẩm thuộc từng khuyến mãi.'
-      operationId: dcfc9439d38c274e2c3652425f30a082
+      operationId: listPromotions
       parameters:
         -
           name: page
@@ -3015,6 +3015,225 @@ paths:
                   message:
                     type: string
                     example: 'The selected status is invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+    post:
+      tags:
+        - 'Khuyến mãi'
+      summary: 'Tạo khuyến mãi'
+      description: 'Tạo khuyến mãi và gán cho các sản phẩm. Một sản phẩm không được có các khuyến mãi đang bật bị trùng thời gian.'
+      operationId: createPromotion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromotionCreateRequest'
+      responses:
+        201:
+          description: 'Tạo khuyến mãi thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 201
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    $ref: '#/components/schemas/Promotion'
+                type: object
+        422:
+          description: 'Dữ liệu không hợp lệ, sản phẩm không tồn tại hoặc thời gian khuyến mãi bị trùng'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+  /api/promotion/first:
+    get:
+      tags:
+        - 'Khuyến mãi'
+      summary: 'Khuyến mãi đang diễn ra gần nhất'
+      description: 'Trả về khuyến mãi đang bật và còn hiệu lực có thời gian bắt đầu gần nhất. Data là null nếu hiện tại không có khuyến mãi phù hợp.'
+      operationId: getCurrentPromotion
+      responses:
+        200:
+          description: 'Lấy khuyến mãi hiện tại thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    oneOf:
+                      - $ref: '#/components/schemas/Promotion'
+                    nullable: true
+                type: object
+  '/api/promotion/{promotion}':
+    put:
+      tags:
+        - 'Khuyến mãi'
+      summary: 'Cập nhật khuyến mãi'
+      description: 'Cập nhật một hoặc nhiều trường của khuyến mãi. Nếu gửi product_ids, danh sách sản phẩm cũ sẽ được thay thế.'
+      operationId: updatePromotion
+      parameters:
+        -
+          name: promotion
+          in: path
+          description: 'ID khuyến mãi.'
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromotionUpdateRequest'
+      responses:
+        200:
+          description: 'Cập nhật khuyến mãi thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    $ref: '#/components/schemas/Promotion'
+                type: object
+        404:
+          description: 'Không tìm thấy khuyến mãi'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 404
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'No query results for model [App\Models\Promotion] 999'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'Dữ liệu không hợp lệ hoặc thời gian khuyến mãi bị trùng'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+    delete:
+      tags:
+        - 'Khuyến mãi'
+      summary: 'Tắt khuyến mãi'
+      description: 'Tắt khuyến mãi bằng cách đặt is_active thành false; dữ liệu khuyến mãi không bị xóa khỏi hệ thống.'
+      operationId: deactivatePromotion
+      parameters:
+        -
+          name: promotion
+          in: path
+          description: 'ID khuyến mãi.'
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Tắt khuyến mãi thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: boolean
+                    example: true
+                type: object
+        404:
+          description: 'Không tìm thấy khuyến mãi'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 404
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'No query results for model [App\Models\Promotion] 999'
                   data:
                     type: object
                     example: null
@@ -3592,6 +3811,181 @@ paths:
         -
           bearerAuth: []
 components:
+  schemas:
+    PromotionProductSummary:
+      properties:
+        id:
+          type: integer
+          example: 10
+        name:
+          type: string
+          example: 'Áo thun basic'
+        price:
+          type: number
+          format: float
+          example: 199000
+        discount_price:
+          type: number
+          format: float
+          example: 159200
+          nullable: true
+        image:
+          type: string
+          example: 'https://cdn.example.com/products/ao-thun.jpg'
+          nullable: true
+      type: object
+    Promotion:
+      required:
+        - id
+        - name
+        - discount_amount
+        - discount_type
+        - start_date
+        - end_date
+        - is_active
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: 'Khuyến mãi mùa hè'
+        description:
+          type: string
+          example: 'Giảm giá các sản phẩm mùa hè'
+          nullable: true
+        discount_amount:
+          type: number
+          format: float
+          example: 20
+          minimum: 0
+        discount_type:
+          type: string
+          example: percentage
+          enum:
+            - percentage
+            - fixed
+        start_date:
+          type: string
+          format: date-time
+          example: '2026-06-01T00:00:00.000000Z'
+        end_date:
+          type: string
+          format: date-time
+          example: '2026-06-30T23:59:59.000000Z'
+        is_active:
+          type: boolean
+          example: true
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/PromotionProductSummary'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      type: object
+    PromotionCreateRequest:
+      required:
+        - name
+        - discount_amount
+        - discount_type
+        - start_date
+        - end_date
+        - product_ids
+      properties:
+        name:
+          type: string
+          example: 'Khuyến mãi mùa hè'
+          maxLength: 255
+        description:
+          type: string
+          example: 'Giảm giá các sản phẩm mùa hè'
+          nullable: true
+        discount_amount:
+          description: 'Phần trăm hoặc số tiền giảm, tùy discount_type.'
+          type: number
+          format: float
+          example: 20
+          exclusiveMinimum: true
+          minimum: 0
+        discount_type:
+          type: string
+          example: percentage
+          enum:
+            - percentage
+            - fixed
+        start_date:
+          type: string
+          format: date-time
+          example: '2026-07-01T00:00:00+07:00'
+        end_date:
+          description: 'Phải sau start_date.'
+          type: string
+          format: date-time
+          example: '2026-07-31T23:59:59+07:00'
+        is_active:
+          type: boolean
+          example: true
+          default: true
+        product_ids:
+          type: array
+          items:
+            type: integer
+          example:
+            - 1
+            - 2
+          minItems: 1
+          uniqueItems: true
+      type: object
+    PromotionUpdateRequest:
+      properties:
+        name:
+          type: string
+          example: 'Khuyến mãi mùa hè cập nhật'
+          maxLength: 255
+        description:
+          type: string
+          example: 'Nội dung khuyến mãi đã cập nhật'
+          nullable: true
+        discount_amount:
+          description: 'Phần trăm hoặc số tiền giảm, tùy discount_type.'
+          type: number
+          format: float
+          example: 25
+          exclusiveMinimum: true
+          minimum: 0
+        discount_type:
+          type: string
+          example: percentage
+          enum:
+            - percentage
+            - fixed
+        start_date:
+          type: string
+          format: date-time
+          example: '2026-07-01T00:00:00+07:00'
+        end_date:
+          description: 'Phải sau start_date hiện tại hoặc start_date gửi kèm.'
+          type: string
+          format: date-time
+          example: '2026-08-15T23:59:59+07:00'
+        is_active:
+          type: boolean
+          example: true
+        product_ids:
+          type: array
+          items:
+            type: integer
+          example:
+            - 1
+            - 2
+            - 3
+          minItems: 1
+          uniqueItems: true
+      type: object
   securitySchemes:
     bearerAuth:
       type: http
