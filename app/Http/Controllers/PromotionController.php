@@ -98,6 +98,7 @@ class PromotionController extends Controller
         operationId: 'listPromotions',
         summary: 'Danh sách khuyến mãi',
         description: 'Lấy danh sách khuyến mãi có phân trang, tìm kiếm và lọc trạng thái. Kết quả bao gồm các sản phẩm thuộc từng khuyến mãi.',
+        security: [['bearerAuth' => []]],
         tags: ['Khuyến mãi'],
         parameters: [
             new OA\Parameter(
@@ -324,6 +325,7 @@ class PromotionController extends Controller
         operationId: 'createPromotion',
         summary: 'Tạo khuyến mãi',
         description: 'Tạo khuyến mãi và gán cho các sản phẩm. Một sản phẩm không được có các khuyến mãi đang bật bị trùng thời gian.',
+        security: [['bearerAuth' => []]],
         tags: ['Khuyến mãi'],
         requestBody: new OA\RequestBody(
             required: true,
@@ -385,6 +387,7 @@ class PromotionController extends Controller
         operationId: 'updatePromotion',
         summary: 'Cập nhật khuyến mãi',
         description: 'Cập nhật một hoặc nhiều trường của khuyến mãi. Nếu gửi product_ids, danh sách sản phẩm cũ sẽ được thay thế.',
+        security: [['bearerAuth' => []]],
         tags: ['Khuyến mãi'],
         parameters: [
             new OA\Parameter(
@@ -469,6 +472,7 @@ class PromotionController extends Controller
         operationId: 'deactivatePromotion',
         summary: 'Tắt khuyến mãi',
         description: 'Tắt khuyến mãi bằng cách đặt is_active thành false; dữ liệu khuyến mãi không bị xóa khỏi hệ thống.',
+        security: [['bearerAuth' => []]],
         tags: ['Khuyến mãi'],
         parameters: [
             new OA\Parameter(

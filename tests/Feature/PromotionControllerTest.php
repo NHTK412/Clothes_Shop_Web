@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\Promotion;
+use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -42,6 +43,10 @@ class PromotionControllerTest extends TestCase
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->unique(['promotion_id', 'product_id']);
         });
+
+        $admin = new User;
+        $admin->forceFill(['id' => 1, 'role' => 'ROLE_ADMIN']);
+        $this->actingAs($admin, 'api');
     }
 
     public function test_it_returns_a_paginated_and_filtered_promotion_list_with_products(): void

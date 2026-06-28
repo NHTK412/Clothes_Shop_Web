@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -44,6 +45,10 @@ class ProductControllerTest extends TestCase
             $table->foreignId('category_id')->constrained()->cascadeOnDelete();
             $table->primary(['product_id', 'category_id']);
         });
+
+        $admin = new User;
+        $admin->forceFill(['id' => 1, 'role' => 'ROLE_ADMIN']);
+        $this->actingAs($admin, 'api');
     }
 
     public function test_variant_uses_its_own_image_or_falls_back_to_product_image(): void
@@ -129,5 +134,18 @@ class ProductControllerTest extends TestCase
             'stock' => 7,
             'image' => $variantImage,
         ]);
+    }
+
+    public function test_customer_cannot_create_a_product(): void
+    {
+        $customer = new User;
+        $customer->forceFill(['id' => 2, 'role' => 'ROLE_CUSTOMER']);
+
+        $this->actingAs($customer, 'api')
+            ->postJson('/api/products', [
+                'name' => 'Restricted product',
+                'price' => 100000,
+            ])
+            ->assertForbidden();
     }
 }

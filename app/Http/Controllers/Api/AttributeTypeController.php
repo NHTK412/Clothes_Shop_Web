@@ -48,6 +48,7 @@ class AttributeTypeController extends Controller
     #[OA\Post(
         path: '/api/attributes',
         summary: 'Tạo loại thuộc tính',
+        security: [['bearerAuth' => []]],
         tags: ['Thuộc tính'],
         requestBody: new OA\RequestBody(
             required: true,
@@ -87,6 +88,7 @@ class AttributeTypeController extends Controller
     #[OA\Put(
         path: '/api/attributes/{id}',
         summary: 'Cập nhật loại thuộc tính',
+        security: [['bearerAuth' => []]],
         tags: ['Thuộc tính'],
         parameters: [
             new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'), example: 1),
@@ -135,6 +137,7 @@ class AttributeTypeController extends Controller
     #[OA\Delete(
         path: '/api/attributes/{id}',
         summary: 'Xóa loại thuộc tính',
+        security: [['bearerAuth' => []]],
         tags: ['Thuộc tính'],
         parameters: [
             new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'), example: 1),
