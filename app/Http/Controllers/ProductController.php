@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttributeType;
 use App\Models\OrderDetail;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 
 class ProductController extends Controller
@@ -200,7 +202,7 @@ class ProductController extends Controller
         $data = $product->toArray();
         $data['average_rating'] = $avg ? (float) number_format($avg, 2) : null;
 
-        $payload = [
+        return response()->json([
             'status' => 200,
             'success' => true,
             'message' => null,
@@ -208,9 +210,224 @@ class ProductController extends Controller
                 'items' => $data,
                 'pagination' => null,
             ],
-        ];
+        ], 200);
+    }
 
-        return response()->json($payload, 200);
+    private function ensureAdmin($user): void
+    {
+        if (! $user || $user->role !== 'ROLE_ADMIN') {
+            abort(403, 'Chỉ quản trị viên được phép');
+        }
+    }
+
+    private function formatInventoryItem(ProductVariant $variant): array
+    {
+        return [
+            'id' => $variant->id,
+            'sku' => $variant->sku,
+            'product_id' => $variant->product_id,
+            'product_name' => $variant->product?->name,
+            'price' => (float) $variant->price,
+            'stock' => (int) $variant->stock,
+            'updated_at' => $variant->updated_at?->toISOString(),
+        ];
+    }
+
+    public function adminInventoryIndex(Request $request)
+    {
+        $this->ensureAdmin($request->user());
+
+        $perPage = max(1, (int) $request->query('per_page', 20));
+        $page = max(1, (int) $request->query('page', 1));
+        $q = trim((string) $request->query('q', ''));
+        $lowStock = $request->boolean('low_stock', false);
+
+        $query = ProductVariant::query()->with('product');
+
+        if ($q !== '') {
+            $query->where(function ($subQuery) use ($q) {
+                $subQuery->where('sku', 'like', "%{$q}%")
+                    ->orWhereHas('product', function ($productQuery) use ($q) {
+                        $productQuery->where('name', 'like', "%{$q}%");
+                    });
+            });
+        }
+
+        if ($lowStock) {
+            $query->where('stock', '<=', 10);
+        }
+
+        $variants = $query->orderBy('stock', 'asc')
+            ->orderByDesc('updated_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'items' => $variants->getCollection()->map(fn (ProductVariant $variant) => $this->formatInventoryItem($variant)),
+                'pagination' => [
+                    'page' => $variants->currentPage(),
+                    'limit' => $variants->perPage(),
+                    'totalItems' => $variants->total(),
+                    'totalPages' => $variants->lastPage(),
+                ],
+            ],
+        ], 200);
+    }
+
+    #[OA\Patch(
+        path: '/api/admin/inventory/{productVariant}',
+        summary: 'Cập nhật tồn kho biến thể sản phẩm',
+        security: [['bearerAuth' => []]],
+        tags: ['Quản lý tồn kho'],
+        parameters: [
+            new OA\Parameter(name: 'productVariant', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['stock'],
+                properties: [
+                    new OA\Property(property: 'stock', type: 'integer', example: 25),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Cập nhật tồn kho thành công'),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+            new OA\Response(response: 422, description: 'Dữ liệu không hợp lệ'),
+        ]
+    )]
+    public function adminInventoryUpdate(Request $request, ProductVariant $productVariant)
+    {
+        $this->ensureAdmin($request->user());
+
+        $validated = $request->validate([
+            'stock' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $productVariant->update([
+            'stock' => $validated['stock'],
+        ]);
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => $this->formatInventoryItem($productVariant->fresh(['product'])),
+        ], 200);
+    }
+
+    #[OA\Post(
+        path: '/api/admin/inventory/stock-in',
+        summary: 'Nhập kho cho biến thể sản phẩm',
+        security: [['bearerAuth' => []]],
+        tags: ['Quản lý tồn kho'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['variant_id', 'quantity'],
+                properties: [
+                    new OA\Property(property: 'variant_id', type: 'integer', example: 12),
+                    new OA\Property(property: 'quantity', type: 'integer', example: 10),
+                    new OA\Property(property: 'note', type: 'string', example: 'Nhập hàng từ nhà cung cấp'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Nhập kho thành công'),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+            new OA\Response(response: 422, description: 'Dữ liệu không hợp lệ'),
+        ]
+    )]
+    public function adminInventoryStockIn(Request $request)
+    {
+        $this->ensureAdmin($request->user());
+
+        $validated = $request->validate([
+            'variant_id' => ['required', 'integer', 'exists:product_variants,id'],
+            'quantity' => ['required', 'integer', 'min:1'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $variant = ProductVariant::findOrFail($validated['variant_id']);
+        $variant->stock += $validated['quantity'];
+        $variant->save();
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => 'Nhập kho thành công',
+            'data' => $this->formatInventoryItem($variant->fresh(['product'])),
+        ], 200);
+    }
+
+    #[OA\Post(
+        path: '/api/admin/inventory/stock-out',
+        summary: 'Xuất kho cho biến thể sản phẩm',
+        security: [['bearerAuth' => []]],
+        tags: ['Quản lý tồn kho'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['variant_id', 'quantity'],
+                properties: [
+                    new OA\Property(property: 'variant_id', type: 'integer', example: 12),
+                    new OA\Property(property: 'quantity', type: 'integer', example: 3),
+                    new OA\Property(property: 'note', type: 'string', example: 'Xuất bán cho đơn hàng'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Xuất kho thành công'),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+            new OA\Response(response: 422, description: 'Số lượng xuất vượt quá tồn kho'),
+        ]
+    )]
+    public function adminInventoryStockOut(Request $request)
+    {
+        $this->ensureAdmin($request->user());
+
+        $validated = $request->validate([
+            'variant_id' => ['required', 'integer', 'exists:product_variants,id'],
+            'quantity' => ['required', 'integer', 'min:1'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $variant = ProductVariant::findOrFail($validated['variant_id']);
+
+        if ($variant->stock < $validated['quantity']) {
+            return response()->json([
+                'status' => 422,
+                'success' => false,
+                'message' => 'Số lượng xuất vượt quá tồn kho hiện có.',
+                'data' => null,
+            ], 422);
+        }
+
+        $variant->stock -= $validated['quantity'];
+        $variant->save();
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => 'Xuất kho thành công',
+            'data' => $this->formatInventoryItem($variant->fresh(['product'])),
+        ], 200);
+    }
+
+    public function create()
+    {
+        $attributeTypes = AttributeType::with('attributeValues')->get();
+
+        return view('admin.product_create', [
+            'attributeTypes' => $attributeTypes,
+        ]);
     }
 
     /**
@@ -262,23 +479,14 @@ class ProductController extends Controller
     )]
     public function store(Request $request)
     {
-        // require admin role
-        $user = $request->user();
-        if (! $user || (($user->role ?? null) !== 'admin')) {
-            return response()->json([
-                'status' => 403,
-                'success' => false,
-                'message' => 'Forbidden: admin only',
-                'data' => null,
-            ], 403);
-        }
-
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|numeric',
             'discount_price' => 'nullable|numeric',
             'image' => 'nullable|string',
+            'attribute_value_ids' => 'nullable|array',
+            'attribute_value_ids.*' => 'integer',
             // categories/variants are accepted flexibly (single id as string/int or arrays)
             'categories' => 'nullable',
             'variants' => 'nullable',
@@ -373,6 +581,26 @@ class ProductController extends Controller
             }
         }
 
+        // If no explicit variants are provided, allow top-level attribute_value_ids to create a default variant
+        if ((empty($validated['variants']) || $validated['variants'] === null)
+            && array_key_exists('attribute_value_ids', $validated)
+            && is_array($validated['attribute_value_ids'])) {
+            $attributeValueIds = array_filter(array_map('intval', $validated['attribute_value_ids']));
+            if (! empty($attributeValueIds)) {
+                $pv = new ProductVariant;
+                $pv->product_id = $product->id;
+                $pv->sku = substr(preg_replace('/[^A-Za-z0-9]+/', '-', strtolower($product->name ?? 'variant')), 0, 40) . '-' . uniqid();
+                if (ProductVariant::where('sku', $pv->sku)->exists()) {
+                    $pv->sku .= '-'.uniqid();
+                }
+                $pv->price = $product->price;
+                $pv->discount_price = $product->discount_price;
+                $pv->stock = 0;
+                $pv->save();
+                $pv->attributeValues()->sync($attributeValueIds);
+            }
+        }
+
         $product->load(['variants', 'categories']);
 
         $payload = [
@@ -441,17 +669,6 @@ class ProductController extends Controller
     )]
     public function update(Request $request, $id)
     {
-        // require admin role
-        $user = $request->user();
-        if (! $user || (($user->role ?? null) !== 'admin')) {
-            return response()->json([
-                'status' => 403,
-                'success' => false,
-                'message' => 'Forbidden: admin only',
-                'data' => null,
-            ], 403);
-        }
-
         $product = Product::findOrFail($id);
 
         $validated = $request->validate([
@@ -460,6 +677,8 @@ class ProductController extends Controller
             'price' => 'sometimes|required|numeric',
             'discount_price' => 'nullable|numeric',
             'image' => 'nullable|string',
+            'attribute_value_ids' => 'nullable|array',
+            'attribute_value_ids.*' => 'integer',
             // flexible inputs
             'categories' => 'nullable',
             'variants' => 'nullable',
@@ -592,6 +811,25 @@ class ProductController extends Controller
             }
         }
 
+        if ((empty($validated['variants']) || $validated['variants'] === null)
+            && array_key_exists('attribute_value_ids', $validated)
+            && is_array($validated['attribute_value_ids'])) {
+            $attributeValueIds = array_filter(array_map('intval', $validated['attribute_value_ids']));
+            if (! empty($attributeValueIds)) {
+                $pv = new ProductVariant;
+                $pv->product_id = $product->id;
+                $pv->sku = substr(preg_replace('/[^A-Za-z0-9]+/', '-', strtolower($product->name ?? 'variant')), 0, 40) . '-' . uniqid();
+                if (ProductVariant::where('sku', $pv->sku)->exists()) {
+                    $pv->sku .= '-'.uniqid();
+                }
+                $pv->price = $product->price;
+                $pv->discount_price = $product->discount_price;
+                $pv->stock = 0;
+                $pv->save();
+                $pv->attributeValues()->sync($attributeValueIds);
+            }
+        }
+
         $product->load(['variants', 'categories']);
 
         $message = null;
@@ -617,17 +855,6 @@ class ProductController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        // require admin role
-        $user = $request->user();
-        if (! $user || (($user->role ?? null) !== 'admin')) {
-            return response()->json([
-                'status' => 403,
-                'success' => false,
-                'message' => 'Forbidden: admin only',
-                'data' => null,
-            ], 403);
-        }
-
         $product = Product::findOrFail($id);
         $product->delete();
 

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -23,6 +24,9 @@ Route::post('/login', function () {
     return back()->withErrors(['message' => 'Invalid credentials']);
 
 });
+
+Route::get('/admin/products/create', [ProductController::class, 'create']);
+Route::post('/admin/products/create', [ProductController::class, 'store']);
 
 Route::get('/api-docs.yaml', function () {
     return response()->file(storage_path('api-docs/api-docs.yaml'), [
