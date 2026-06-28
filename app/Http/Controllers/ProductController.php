@@ -470,6 +470,7 @@ class ProductController extends Controller
                                 'sku' => 'AO-THUN-DEN-M',
                                 'price' => 199000,
                                 'stock' => 10,
+                                'image' => 'https://cdn.example.com/products/ao-thun-den.jpg',
                                 'attribute_value_ids' => [1, 2],
                             ],
                         ]
@@ -497,6 +498,7 @@ class ProductController extends Controller
             // categories/variants are accepted flexibly (single id as string/int or arrays)
             'categories' => 'nullable',
             'variants' => 'nullable',
+            'variants.*.image' => 'nullable|string|max:2048',
         ]);
 
         $product = new Product;
@@ -556,7 +558,7 @@ class ProductController extends Controller
                         $pv->price = $v['price'] ?? 0;
                         $pv->discount_price = $v['discount_price'] ?? null;
                         $pv->stock = $v['stock'] ?? 0;
-                        $pv->image = $v['image'] ?? null;
+                        $pv->image = ! empty($v['image']) ? $v['image'] : $product->image;
                         $pv->product_id = $product->id;
                         $pv->save();
 
@@ -603,6 +605,7 @@ class ProductController extends Controller
                 $pv->price = $product->price;
                 $pv->discount_price = $product->discount_price;
                 $pv->stock = 0;
+                $pv->image = $product->image;
                 $pv->save();
                 $pv->attributeValues()->sync($attributeValueIds);
             }
@@ -659,6 +662,7 @@ class ProductController extends Controller
                                 'sku' => 'AO-THUN-DEN-L',
                                 'price' => 219000,
                                 'stock' => 8,
+                                'image' => 'https://cdn.example.com/products/ao-thun-den.jpg',
                                 'attribute_value_ids' => [1, 3],
                             ],
                         ]
@@ -689,6 +693,7 @@ class ProductController extends Controller
             // flexible inputs
             'categories' => 'nullable',
             'variants' => 'nullable',
+            'variants.*.image' => 'nullable|string|max:2048',
         ]);
 
         // Update scalar fields
@@ -756,7 +761,7 @@ class ProductController extends Controller
                                 $pv->stock = $v['stock'];
                             }
                             if (array_key_exists('image', $v)) {
-                                $pv->image = $v['image'];
+                                $pv->image = ! empty($v['image']) ? $v['image'] : $product->image;
                             }
                             $pv->product_id = $product->id;
                             $pv->save();
@@ -770,7 +775,7 @@ class ProductController extends Controller
                             $pv->price = $v['price'] ?? 0;
                             $pv->discount_price = $v['discount_price'] ?? null;
                             $pv->stock = $v['stock'] ?? 0;
-                            $pv->image = $v['image'] ?? null;
+                            $pv->image = ! empty($v['image']) ? $v['image'] : $product->image;
                             $pv->product_id = $product->id;
                             $pv->save();
                         }
@@ -832,6 +837,7 @@ class ProductController extends Controller
                 $pv->price = $product->price;
                 $pv->discount_price = $product->discount_price;
                 $pv->stock = 0;
+                $pv->image = $product->image;
                 $pv->save();
                 $pv->attributeValues()->sync($attributeValueIds);
             }
