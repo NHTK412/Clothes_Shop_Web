@@ -350,11 +350,7 @@ class OrderController extends Controller
 
         $validated = $request->validate([
             'search' => 'nullable|string|max:255',
-            'status' => ['nullable', 'string', function ($attribute, $value, $fail) {
-                if ($value !== null && $this->normalizeOrderStatus($value) === null) {
-                    $fail('Trạng thái không hợp lệ.');
-                }
-            }],
+            'status' => 'nullable|string|in:PENDING_PAYMENT,CONFIRMED,SHIPPING,COMPLETED,CANCELLED,RETURNED',
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
         ]);
@@ -374,7 +370,7 @@ class OrderController extends Controller
         }
 
         if (! empty($validated['status'])) {
-            $query->where('status', $this->normalizeOrderStatus($validated['status']));
+            $query->where('status', $validated['status']);
         }
 
         $orders = $query->orderByDesc('created_at')->paginate($validated['per_page'] ?? 15, ['*'], 'page', $validated['page'] ?? 1);

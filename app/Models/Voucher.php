@@ -17,6 +17,17 @@ class Voucher extends Model
         'expiry_date',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'discount_amount' => 'decimal:2',
+            'max_discount_amount' => 'decimal:2',
+            'is_active' => 'boolean',
+            'usage_limit' => 'integer',
+            'expiry_date' => 'date',
+        ];
+    }
+
     public function applyToOrder($order)
     {
         switch ($this->discount_type) {

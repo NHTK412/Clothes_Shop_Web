@@ -5271,19 +5271,319 @@
                 }
             }
         },
+        "/api/voucher": {
+            "get": {
+                "tags": [
+                    "Voucher"
+                ],
+                "summary": "Danh sách voucher",
+                "description": "Lấy danh sách voucher dành cho quản trị viên, bao gồm cả voucher đã bị tắt.",
+                "operationId": "listVouchers",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1,
+                            "minimum": 1
+                        },
+                        "example": 1
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 20,
+                            "maximum": 100,
+                            "minimum": 1
+                        },
+                        "example": 20
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Tìm theo mã hoặc mô tả.",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "WELCOME"
+                    },
+                    {
+                        "name": "is_active",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "example": true
+                    },
+                    {
+                        "name": "discount_type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "ORDER",
+                                "SHIPPING"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "valid",
+                                "expired"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lấy danh sách voucher thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "items": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "code": {
+                                                                "type": "string",
+                                                                "example": "WELCOME10"
+                                                            },
+                                                            "description": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "discount_amount": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 10
+                                                            },
+                                                            "max_discount_amount": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 50000,
+                                                                "nullable": true
+                                                            },
+                                                            "discount_type": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "ORDER",
+                                                                    "SHIPPING"
+                                                                ]
+                                                            },
+                                                            "is_active": {
+                                                                "type": "boolean",
+                                                                "example": true
+                                                            },
+                                                            "usage_limit": {
+                                                                "type": "integer",
+                                                                "example": 100
+                                                            },
+                                                            "expiry_date": {
+                                                                "type": "string",
+                                                                "format": "date"
+                                                            },
+                                                            "created_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            },
+                                                            "updated_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "pagination": {
+                                                    "properties": {
+                                                        "page": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "limit": {
+                                                            "type": "integer",
+                                                            "example": 20
+                                                        },
+                                                        "totalItems": {
+                                                            "type": "integer",
+                                                            "example": 25
+                                                        },
+                                                        "totalPages": {
+                                                            "type": "integer",
+                                                            "example": 2
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Chưa xác thực"
+                    },
+                    "403": {
+                        "description": "Chỉ quản trị viên được phép"
+                    },
+                    "422": {
+                        "description": "Tham số lọc không hợp lệ"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Voucher"
+                ],
+                "summary": "Tạo voucher",
+                "description": "Nếu code rỗng hoặc null, hệ thống tự sinh code 10 ký tự chữ và số không trùng.",
+                "operationId": "createVoucher",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "discount_amount",
+                                    "discount_type",
+                                    "usage_limit",
+                                    "expiry_date"
+                                ],
+                                "properties": {
+                                    "code": {
+                                        "description": "Không bắt buộc; tự sinh nếu bỏ trống.",
+                                        "type": "string",
+                                        "example": "WELCOME10",
+                                        "nullable": true,
+                                        "maxLength": 50
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Giảm 10% cho đơn hàng",
+                                        "nullable": true,
+                                        "maxLength": 255
+                                    },
+                                    "discount_amount": {
+                                        "description": "Phần trăm giảm từ 0 đến 100.",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 10,
+                                        "maximum": 100,
+                                        "exclusiveMinimum": true,
+                                        "minimum": 0
+                                    },
+                                    "max_discount_amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 50000,
+                                        "nullable": true,
+                                        "minimum": 0
+                                    },
+                                    "discount_type": {
+                                        "type": "string",
+                                        "example": "ORDER",
+                                        "enum": [
+                                            "ORDER",
+                                            "SHIPPING"
+                                        ]
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true,
+                                        "default": true
+                                    },
+                                    "usage_limit": {
+                                        "type": "integer",
+                                        "example": 100,
+                                        "minimum": 1
+                                    },
+                                    "expiry_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-12-31"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Tạo voucher thành công"
+                    },
+                    "401": {
+                        "description": "Chưa xác thực"
+                    },
+                    "403": {
+                        "description": "Chỉ quản trị viên được phép"
+                    },
+                    "422": {
+                        "description": "Dữ liệu không hợp lệ hoặc code đã tồn tại"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/voucher/{voucher}": {
             "get": {
                 "tags": [
                     "Voucher"
                 ],
                 "summary": "Lấy chi tiết voucher theo mã",
-                "description": "Trả về thông tin voucher đang hoạt động và chưa hết hạn theo mã voucher.",
+                "description": "Khách hàng chỉ xem được voucher còn hiệu lực theo code. Quản trị viên có thể xem voucher theo code hoặc ID.",
                 "operationId": "getVoucherByCode",
                 "parameters": [
                     {
                         "name": "voucher",
                         "in": "path",
-                        "description": "Mã voucher cần kiểm tra.",
+                        "description": "Code voucher; quản trị viên cũng có thể truyền ID.",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -5323,13 +5623,13 @@
                                                 },
                                                 "description": {
                                                     "type": "string",
-                                                    "example": "Giảm 100.000đ cho đơn hàng",
+                                                    "example": "Giảm 10% cho đơn hàng",
                                                     "nullable": true
                                                 },
                                                 "discount_amount": {
                                                     "type": "number",
                                                     "format": "float",
-                                                    "example": 100000
+                                                    "example": 10
                                                 },
                                                 "max_discount_amount": {
                                                     "type": "number",
@@ -5434,6 +5734,176 @@
                                 }
                             }
                         }
+                    },
+                    "404": {
+                        "description": "Quản trị viên không tìm thấy voucher"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Voucher"
+                ],
+                "summary": "Cập nhật voucher",
+                "description": "Cập nhật voucher theo code hoặc ID. Chỉ cần gửi các trường muốn thay đổi.",
+                "operationId": "updateVoucher",
+                "parameters": [
+                    {
+                        "name": "voucher",
+                        "in": "path",
+                        "description": "Code hoặc ID voucher.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "WELCOME10"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "code": {
+                                        "type": "string",
+                                        "example": "SUMMER2026",
+                                        "maxLength": 50
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Giảm 15% cho đơn hàng",
+                                        "nullable": true,
+                                        "maxLength": 255
+                                    },
+                                    "discount_amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 15,
+                                        "maximum": 100,
+                                        "exclusiveMinimum": true,
+                                        "minimum": 0
+                                    },
+                                    "max_discount_amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 75000,
+                                        "nullable": true,
+                                        "minimum": 0
+                                    },
+                                    "discount_type": {
+                                        "type": "string",
+                                        "example": "ORDER",
+                                        "enum": [
+                                            "ORDER",
+                                            "SHIPPING"
+                                        ]
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "usage_limit": {
+                                        "type": "integer",
+                                        "example": 50,
+                                        "minimum": 0
+                                    },
+                                    "expiry_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2027-01-31"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Cập nhật voucher thành công"
+                    },
+                    "401": {
+                        "description": "Chưa xác thực"
+                    },
+                    "403": {
+                        "description": "Chỉ quản trị viên được phép"
+                    },
+                    "404": {
+                        "description": "Không tìm thấy voucher"
+                    },
+                    "422": {
+                        "description": "Dữ liệu không hợp lệ hoặc code đã tồn tại"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Voucher"
+                ],
+                "summary": "Tắt voucher",
+                "description": "Không xóa bản ghi; hệ thống cập nhật is_active thành false để voucher không thể tiếp tục sử dụng.",
+                "operationId": "deleteVoucher",
+                "parameters": [
+                    {
+                        "name": "voucher",
+                        "in": "path",
+                        "description": "Code hoặc ID voucher.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "WELCOME10"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tắt voucher thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "type": "boolean",
+                                            "example": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Chưa xác thực"
+                    },
+                    "403": {
+                        "description": "Chỉ quản trị viên được phép"
+                    },
+                    "404": {
+                        "description": "Không tìm thấy voucher"
                     }
                 },
                 "security": [
