@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttributeType;
+use App\Models\OrderDetail;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Models\Category;
-use App\Models\OrderDetail;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use OpenApi\Attributes as OA;
 
 class ProductController extends Controller
@@ -29,6 +30,28 @@ class ProductController extends Controller
             new OA\Parameter(name: 'min_price', in: 'query', required: false, schema: new OA\Schema(type: 'number'), example: 100000),
             new OA\Parameter(name: 'max_price', in: 'query', required: false, schema: new OA\Schema(type: 'number'), example: 500000),
             new OA\Parameter(name: 'in_stock', in: 'query', required: false, schema: new OA\Schema(type: 'boolean'), example: true),
+            new OA\Parameter(name: 'promotionId', in: 'query', required: false, schema: new OA\Schema(type: 'integer'), example: 1),
+            new OA\Parameter(
+                name: 'attribute_value_ids',
+                description: 'Lọc sản phẩm có cùng một biến thể chứa đầy đủ các ID giá trị thuộc tính. Hỗ trợ chuỗi phân cách bằng dấu phẩy, ví dụ ID màu Đỏ và size M.',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'string'),
+                example: '1,4'
+            ),
+            new OA\Parameter(
+                name: 'attr',
+                description: 'Lọc theo tên thuộc tính và value/display_value. Ví dụ: attr[color]=red&attr[size]=M,L. Các thuộc tính phải cùng thuộc một biến thể.',
+                in: 'query',
+                required: false,
+                style: 'deepObject',
+                explode: true,
+                schema: new OA\Schema(
+                    type: 'object',
+                    additionalProperties: new OA\AdditionalProperties(type: 'string')
+                ),
+                example: ['color' => 'red', 'size' => 'M,L']
+            ),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Lấy danh sách sản phẩm thành công'),
@@ -43,10 +66,21 @@ class ProductController extends Controller
         $q = $request->query('q'); // search query
         $minPrice = $request->query('min_price');
         $maxPrice = $request->query('max_price');
+        $hasMinPrice = $minPrice !== null && $minPrice !== '';
+        $hasMaxPrice = $maxPrice !== null && $maxPrice !== '';
         $inStock = $request->boolean('in_stock', false);
         $attrs = $request->query('attr', []); // e.g. attr[color]=blue&attr[size]=M
+        $attrs = is_array($attrs) ? $attrs : [];
+        $attributeValueIds = $this->parseAttributeValueIds($request->query('attribute_value_ids', []));
+        $promotionId = $request->query('promotionId');
 
         $query = Product::with(['variants.attributeValues', 'categories']);
+
+        if ($promotionId !== null && $promotionId !== '') {
+            $query->whereHas('promotions', function ($promotionQuery) use ($promotionId) {
+                $promotionQuery->where('promotions.id', (int) $promotionId);
+            });
+        }
 
         if ($category) {
             $query->whereHas('categories', function ($qcat) use ($category) {
@@ -76,16 +110,28 @@ class ProductController extends Controller
         }
 
         // Filter by variant price, stock and attribute values
-        if ($minPrice || $maxPrice || $inStock || ! empty($attrs)) {
-            $query->whereHas('variants', function ($v) use ($minPrice, $maxPrice, $inStock, $attrs) {
-                if ($minPrice !== null && $minPrice !== '') {
-                    $v->where('price', '>=', (float) $minPrice);
+        if ($hasMinPrice || $hasMaxPrice || $inStock || ! empty($attrs) || ! empty($attributeValueIds)) {
+            $query->whereHas('variants', function ($v) use ($minPrice, $maxPrice, $hasMinPrice, $hasMaxPrice, $inStock, $attrs, $attributeValueIds) {
+                if ($hasMinPrice) {
+                    $v->whereRaw(
+                        '(price - COALESCE(discount_price, 0)) >= CAST(? AS DECIMAL(12, 2))',
+                        [$minPrice]
+                    );
                 }
-                if ($maxPrice !== null && $maxPrice !== '') {
-                    $v->where('price', '<=', (float) $maxPrice);
+                if ($hasMaxPrice) {
+                    $v->whereRaw(
+                        '(price - COALESCE(discount_price, 0)) <= CAST(? AS DECIMAL(12, 2))',
+                        [$maxPrice]
+                    );
                 }
                 if ($inStock) {
                     $v->where('stock', '>', 0);
+                }
+
+                foreach ($attributeValueIds as $attributeValueId) {
+                    $v->whereHas('attributeValues', function ($attributeValueQuery) use ($attributeValueId) {
+                        $attributeValueQuery->whereKey($attributeValueId);
+                    });
                 }
 
                 // attribute filters: attr[name]=value or attr[name]=v1,v2
@@ -114,11 +160,15 @@ class ProductController extends Controller
             }
             // protect against invalid columns by allowing only certain fields
             $allowed = ['name', 'created_at', 'updated_at', 'price'];
-            // support ordering by variant price (uses withMin)
+            // Sort by the lowest final variant price (price - discount).
             if ($sort === 'price') {
-                $query->withMin('variants', 'price');
                 if (in_array($sort, $allowed, true)) {
-                    $query->orderBy('variants_min_price', $direction);
+                    $query->orderBy(
+                        ProductVariant::query()
+                            ->selectRaw('MIN(price - COALESCE(discount_price, 0))')
+                            ->whereColumn('product_id', 'products.id'),
+                        $direction
+                    );
                 }
             }
             if (in_array($sort, $allowed, true)) {
@@ -149,7 +199,6 @@ class ProductController extends Controller
 
         $products = $query->paginate($perPage, ['*'], 'page', $page);
 
-
         $payload = [
             'status' => 200,
             'success' => true,
@@ -167,6 +216,24 @@ class ProductController extends Controller
 
         return response()->json($payload, 200);
 
+    }
+
+    private function parseAttributeValueIds(array|string|null $rawIds): array
+    {
+        $rawIds = is_array($rawIds) ? $rawIds : [$rawIds];
+        $ids = [];
+
+        foreach ($rawIds as $rawId) {
+            foreach (explode(',', (string) $rawId) as $id) {
+                $id = trim($id);
+
+                if (ctype_digit($id) && (int) $id > 0) {
+                    $ids[] = (int) $id;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**
@@ -201,7 +268,7 @@ class ProductController extends Controller
         $data = $product->toArray();
         $data['average_rating'] = $avg ? (float) number_format($avg, 2) : null;
 
-        $payload = [
+        return response()->json([
             'status' => 200,
             'success' => true,
             'message' => null,
@@ -209,9 +276,226 @@ class ProductController extends Controller
                 'items' => $data,
                 'pagination' => null,
             ],
-        ];
+        ], 200);
+    }
 
-        return response()->json($payload, 200);
+    private function ensureAdmin($user): void
+    {
+        if (! $user || $user->role !== 'ROLE_ADMIN') {
+            abort(403, 'Chỉ quản trị viên được phép');
+        }
+    }
+
+    private function formatInventoryItem(ProductVariant $variant): array
+    {
+        return [
+            'id' => $variant->id,
+            'sku' => $variant->sku,
+            'product_id' => $variant->product_id,
+            'product_name' => $variant->product?->name,
+            'price' => (float) $variant->price,
+            'stock' => (int) $variant->stock,
+            'updated_at' => $variant->updated_at?->toISOString(),
+        ];
+    }
+
+    public function adminInventoryIndex(Request $request)
+    {
+        $this->ensureAdmin($request->user());
+
+        $perPage = max(1, (int) $request->query('per_page', 20));
+        $page = max(1, (int) $request->query('page', 1));
+        $q = trim((string) $request->query('q', ''));
+        $lowStock = $request->boolean('low_stock', false);
+
+        $query = ProductVariant::query()
+            ->whereHas('product')
+            ->with('product');
+
+        if ($q !== '') {
+            $query->where(function ($subQuery) use ($q) {
+                $subQuery->where('sku', 'like', "%{$q}%")
+                    ->orWhereHas('product', function ($productQuery) use ($q) {
+                        $productQuery->where('name', 'like', "%{$q}%");
+                    });
+            });
+        }
+
+        if ($lowStock) {
+            $query->where('stock', '<=', 10);
+        }
+
+        $variants = $query->orderBy('stock', 'asc')
+            ->orderByDesc('updated_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'items' => $variants->getCollection()->map(fn (ProductVariant $variant) => $this->formatInventoryItem($variant)),
+                'pagination' => [
+                    'page' => $variants->currentPage(),
+                    'limit' => $variants->perPage(),
+                    'totalItems' => $variants->total(),
+                    'totalPages' => $variants->lastPage(),
+                ],
+            ],
+        ], 200);
+    }
+
+    #[OA\Patch(
+        path: '/api/admin/inventory/{productVariant}',
+        summary: 'Cập nhật tồn kho biến thể sản phẩm',
+        security: [['bearerAuth' => []]],
+        tags: ['Quản lý tồn kho'],
+        parameters: [
+            new OA\Parameter(name: 'productVariant', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['stock'],
+                properties: [
+                    new OA\Property(property: 'stock', type: 'integer', example: 25),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Cập nhật tồn kho thành công'),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+            new OA\Response(response: 422, description: 'Dữ liệu không hợp lệ'),
+        ]
+    )]
+    public function adminInventoryUpdate(Request $request, ProductVariant $productVariant)
+    {
+        $this->ensureAdmin($request->user());
+
+        $validated = $request->validate([
+            'stock' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $productVariant->update([
+            'stock' => $validated['stock'],
+        ]);
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => $this->formatInventoryItem($productVariant->fresh(['product'])),
+        ], 200);
+    }
+
+    #[OA\Post(
+        path: '/api/admin/inventory/stock-in',
+        summary: 'Nhập kho cho biến thể sản phẩm',
+        security: [['bearerAuth' => []]],
+        tags: ['Quản lý tồn kho'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['variant_id', 'quantity'],
+                properties: [
+                    new OA\Property(property: 'variant_id', type: 'integer', example: 12),
+                    new OA\Property(property: 'quantity', type: 'integer', example: 10),
+                    new OA\Property(property: 'note', type: 'string', example: 'Nhập hàng từ nhà cung cấp'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Nhập kho thành công'),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+            new OA\Response(response: 422, description: 'Dữ liệu không hợp lệ'),
+        ]
+    )]
+    public function adminInventoryStockIn(Request $request)
+    {
+        $this->ensureAdmin($request->user());
+
+        $validated = $request->validate([
+            'variant_id' => ['required', 'integer', 'exists:product_variants,id'],
+            'quantity' => ['required', 'integer', 'min:1'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $variant = ProductVariant::findOrFail($validated['variant_id']);
+        $variant->stock += $validated['quantity'];
+        $variant->save();
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => 'Nhập kho thành công',
+            'data' => $this->formatInventoryItem($variant->fresh(['product'])),
+        ], 200);
+    }
+
+    #[OA\Post(
+        path: '/api/admin/inventory/stock-out',
+        summary: 'Xuất kho cho biến thể sản phẩm',
+        security: [['bearerAuth' => []]],
+        tags: ['Quản lý tồn kho'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['variant_id', 'quantity'],
+                properties: [
+                    new OA\Property(property: 'variant_id', type: 'integer', example: 12),
+                    new OA\Property(property: 'quantity', type: 'integer', example: 3),
+                    new OA\Property(property: 'note', type: 'string', example: 'Xuất bán cho đơn hàng'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Xuất kho thành công'),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+            new OA\Response(response: 422, description: 'Số lượng xuất vượt quá tồn kho'),
+        ]
+    )]
+    public function adminInventoryStockOut(Request $request)
+    {
+        $this->ensureAdmin($request->user());
+
+        $validated = $request->validate([
+            'variant_id' => ['required', 'integer', 'exists:product_variants,id'],
+            'quantity' => ['required', 'integer', 'min:1'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $variant = ProductVariant::findOrFail($validated['variant_id']);
+
+        if ($variant->stock < $validated['quantity']) {
+            return response()->json([
+                'status' => 422,
+                'success' => false,
+                'message' => 'Số lượng xuất vượt quá tồn kho hiện có.',
+                'data' => null,
+            ], 422);
+        }
+
+        $variant->stock -= $validated['quantity'];
+        $variant->save();
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => 'Xuất kho thành công',
+            'data' => $this->formatInventoryItem($variant->fresh(['product'])),
+        ], 200);
+    }
+
+    public function create()
+    {
+        $attributeTypes = AttributeType::with('attributeValues')->get();
+
+        return view('admin.product_create', [
+            'attributeTypes' => $attributeTypes,
+        ]);
     }
 
     /**
@@ -241,15 +525,29 @@ class ProductController extends Controller
                     new OA\Property(
                         property: 'variants',
                         type: 'array',
-                        items: new OA\Items(type: 'object'),
-                        example: [
-                            [
-                                'sku' => 'AO-THUN-DEN-M',
-                                'price' => 199000,
-                                'stock' => 10,
-                                'attribute_value_ids' => [1, 2],
+                        items: new OA\Items(
+                            required: ['sku', 'price'],
+                            properties: [
+                                new OA\Property(property: 'sku', type: 'string', example: 'AO-THUN-DEN-M'),
+                                new OA\Property(property: 'price', type: 'number', format: 'float', minimum: 0, example: 199000),
+                                new OA\Property(property: 'discount_price', type: 'number', format: 'float', minimum: 0, nullable: true, example: 169000),
+                                new OA\Property(property: 'stock', type: 'integer', minimum: 0, default: 0, example: 10),
+                                new OA\Property(
+                                    property: 'image',
+                                    description: 'Ảnh riêng của biến thể. Nếu không truyền, hệ thống sử dụng ảnh sản phẩm.',
+                                    type: 'string',
+                                    nullable: true,
+                                    example: 'https://cdn.example.com/products/ao-thun-den.jpg'
+                                ),
+                                new OA\Property(
+                                    property: 'attribute_value_ids',
+                                    type: 'array',
+                                    items: new OA\Items(type: 'integer'),
+                                    example: [1, 2]
+                                ),
                             ],
-                        ]
+                            type: 'object'
+                        )
                     ),
                 ],
                 type: 'object'
@@ -263,29 +561,27 @@ class ProductController extends Controller
     )]
     public function store(Request $request)
     {
-        // require admin role
-        $user = $request->user();
-        if (!$user || (($user->role ?? null) !== 'admin')) {
-            return response()->json([
-                'status' => 403,
-                'success' => false,
-                'message' => 'Forbidden: admin only',
-                'data' => null,
-            ], 403);
-        }
-
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|numeric',
             'discount_price' => 'nullable|numeric',
             'image' => 'nullable|string',
+            'attribute_value_ids' => 'nullable|array',
+            'attribute_value_ids.*' => 'integer',
             // categories/variants are accepted flexibly (single id as string/int or arrays)
             'categories' => 'nullable',
             'variants' => 'nullable',
+            'variants.*.sku' => 'sometimes|required|string|max:255',
+            'variants.*.price' => 'nullable|numeric|min:0',
+            'variants.*.discount_price' => 'nullable|numeric|min:0',
+            'variants.*.stock' => 'nullable|integer|min:0',
+            'variants.*.image' => 'nullable|string|max:2048',
+            'variants.*.attribute_value_ids' => 'nullable|array',
+            'variants.*.attribute_value_ids.*' => 'integer',
         ]);
 
-        $product = new Product();
+        $product = new Product;
         $product->name = $validated['name'];
         $product->description = $validated['description'] ?? null;
         $product->price = $validated['price'];
@@ -296,17 +592,20 @@ class ProductController extends Controller
         // Attach categories if provided. Accept single id (string/int) or array of ids/objects.
         if (array_key_exists('categories', $validated) && $validated['categories'] !== null) {
             $catsRaw = $validated['categories'];
-            if (!is_array($catsRaw)) {
+            if (! is_array($catsRaw)) {
                 $cats = [$catsRaw];
             } else {
                 $cats = $catsRaw;
             }
             $catIds = array_map(function ($c) {
-                if (is_array($c) && isset($c['id'])) return (int) $c['id'];
+                if (is_array($c) && isset($c['id'])) {
+                    return (int) $c['id'];
+                }
+
                 return (int) $c;
             }, $cats);
-            $catIds = array_filter($catIds, fn($v) => $v > 0);
-            if (!empty($catIds)) {
+            $catIds = array_filter($catIds, fn ($v) => $v > 0);
+            if (! empty($catIds)) {
                 $product->categories()->sync($catIds);
             }
         }
@@ -317,7 +616,7 @@ class ProductController extends Controller
         // - array of objects => create new variants
         if (array_key_exists('variants', $validated) && $validated['variants'] !== null) {
             $varsRaw = $validated['variants'];
-            if (!is_array($varsRaw)) {
+            if (! is_array($varsRaw)) {
                 // single id
                 $vid = (int) $varsRaw;
                 $existing = ProductVariant::find($vid);
@@ -331,26 +630,29 @@ class ProductController extends Controller
                 if (is_array($first) && array_key_exists('sku', $first)) {
                     // array of objects => create
                     foreach ($varsRaw as $v) {
-                        $pv = new ProductVariant();
+                        $pv = new ProductVariant;
                         $pv->sku = $v['sku'] ?? null;
                         if ($pv->sku && ProductVariant::where('sku', $pv->sku)->exists()) {
-                            $pv->sku = $pv->sku . '-' . uniqid();
+                            $pv->sku = $pv->sku.'-'.uniqid();
                         }
                         $pv->price = $v['price'] ?? 0;
                         $pv->discount_price = $v['discount_price'] ?? null;
                         $pv->stock = $v['stock'] ?? 0;
-                        $pv->image = $v['image'] ?? null;
+                        $pv->image = ! empty($v['image']) ? $v['image'] : $product->image;
                         $pv->product_id = $product->id;
                         $pv->save();
 
                         // attach attribute values if provided (array of ids)
-                        if (!empty($v['attribute_value_ids']) && is_array($v['attribute_value_ids'])) {
+                        if (! empty($v['attribute_value_ids']) && is_array($v['attribute_value_ids'])) {
                             $pv->attributeValues()->sync(array_map('intval', $v['attribute_value_ids']));
-                        } elseif (!empty($v['attribute_values']) && is_array($v['attribute_values'])) {
+                        } elseif (! empty($v['attribute_values']) && is_array($v['attribute_values'])) {
                             // accept array of attribute value objects or values (try id first)
                             $ids = array_map(function ($it) {
-                                if (is_array($it) && isset($it['id'])) return (int)$it['id'];
-                                return (int)$it;
+                                if (is_array($it) && isset($it['id'])) {
+                                    return (int) $it['id'];
+                                }
+
+                                return (int) $it;
                             }, $v['attribute_values']);
                             $pv->attributeValues()->sync(array_filter($ids));
                         }
@@ -365,6 +667,27 @@ class ProductController extends Controller
                         }
                     }
                 }
+            }
+        }
+
+        // If no explicit variants are provided, allow top-level attribute_value_ids to create a default variant
+        if ((empty($validated['variants']) || $validated['variants'] === null)
+            && array_key_exists('attribute_value_ids', $validated)
+            && is_array($validated['attribute_value_ids'])) {
+            $attributeValueIds = array_filter(array_map('intval', $validated['attribute_value_ids']));
+            if (! empty($attributeValueIds)) {
+                $pv = new ProductVariant;
+                $pv->product_id = $product->id;
+                $pv->sku = substr(preg_replace('/[^A-Za-z0-9]+/', '-', strtolower($product->name ?? 'variant')), 0, 40).'-'.uniqid();
+                if (ProductVariant::where('sku', $pv->sku)->exists()) {
+                    $pv->sku .= '-'.uniqid();
+                }
+                $pv->price = $product->price;
+                $pv->discount_price = $product->discount_price;
+                $pv->stock = 0;
+                $pv->image = $product->image;
+                $pv->save();
+                $pv->attributeValues()->sync($attributeValueIds);
             }
         }
 
@@ -412,16 +735,34 @@ class ProductController extends Controller
                     new OA\Property(
                         property: 'variants',
                         type: 'array',
-                        items: new OA\Items(type: 'object'),
-                        example: [
-                            [
-                                'id' => 1,
-                                'sku' => 'AO-THUN-DEN-L',
-                                'price' => 219000,
-                                'stock' => 8,
-                                'attribute_value_ids' => [1, 3],
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(
+                                    property: 'id',
+                                    description: 'ID biến thể cần cập nhật. Bỏ qua để tạo biến thể mới.',
+                                    type: 'integer',
+                                    example: 1
+                                ),
+                                new OA\Property(property: 'sku', type: 'string', example: 'AO-THUN-DEN-L'),
+                                new OA\Property(property: 'price', type: 'number', format: 'float', minimum: 0, example: 219000),
+                                new OA\Property(property: 'discount_price', type: 'number', format: 'float', minimum: 0, nullable: true, example: 189000),
+                                new OA\Property(property: 'stock', type: 'integer', minimum: 0, example: 8),
+                                new OA\Property(
+                                    property: 'image',
+                                    description: 'Ảnh riêng của biến thể. Truyền null hoặc chuỗi rỗng để dùng ảnh sản phẩm.',
+                                    type: 'string',
+                                    nullable: true,
+                                    example: 'https://cdn.example.com/products/ao-thun-den.jpg'
+                                ),
+                                new OA\Property(
+                                    property: 'attribute_value_ids',
+                                    type: 'array',
+                                    items: new OA\Items(type: 'integer'),
+                                    example: [1, 3]
+                                ),
                             ],
-                        ]
+                            type: 'object'
+                        )
                     ),
                 ],
                 type: 'object'
@@ -436,17 +777,6 @@ class ProductController extends Controller
     )]
     public function update(Request $request, $id)
     {
-        // require admin role
-        $user = $request->user();
-        if (!$user || (($user->role ?? null) !== 'admin')) {
-            return response()->json([
-                'status' => 403,
-                'success' => false,
-                'message' => 'Forbidden: admin only',
-                'data' => null,
-            ], 403);
-        }
-
         $product = Product::findOrFail($id);
 
         $validated = $request->validate([
@@ -455,9 +785,19 @@ class ProductController extends Controller
             'price' => 'sometimes|required|numeric',
             'discount_price' => 'nullable|numeric',
             'image' => 'nullable|string',
+            'attribute_value_ids' => 'nullable|array',
+            'attribute_value_ids.*' => 'integer',
             // flexible inputs
             'categories' => 'nullable',
             'variants' => 'nullable',
+            'variants.*.id' => 'sometimes|required|integer|exists:product_variants,id',
+            'variants.*.sku' => 'sometimes|required|string|max:255',
+            'variants.*.price' => 'nullable|numeric|min:0',
+            'variants.*.discount_price' => 'nullable|numeric|min:0',
+            'variants.*.stock' => 'nullable|integer|min:0',
+            'variants.*.image' => 'nullable|string|max:2048',
+            'variants.*.attribute_value_ids' => 'nullable|array',
+            'variants.*.attribute_value_ids.*' => 'integer',
         ]);
 
         // Update scalar fields
@@ -472,23 +812,26 @@ class ProductController extends Controller
         // Handle categories: accept single id or array
         if (array_key_exists('categories', $validated) && $validated['categories'] !== null) {
             $catsRaw = $validated['categories'];
-            if (!is_array($catsRaw)) {
+            if (! is_array($catsRaw)) {
                 $cats = [$catsRaw];
             } else {
                 $cats = $catsRaw;
             }
             $catIds = array_map(function ($c) {
-                if (is_array($c) && isset($c['id'])) return (int) $c['id'];
+                if (is_array($c) && isset($c['id'])) {
+                    return (int) $c['id'];
+                }
+
                 return (int) $c;
             }, $cats);
-            $catIds = array_filter($catIds, fn($v) => $v > 0);
+            $catIds = array_filter($catIds, fn ($v) => $v > 0);
             $product->categories()->sync($catIds);
         }
 
         // Handle variants: single id / array of ids / array of objects
         if (array_key_exists('variants', $validated) && $validated['variants'] !== null) {
             $varsRaw = $validated['variants'];
-            if (!is_array($varsRaw)) {
+            if (! is_array($varsRaw)) {
                 $vid = (int) $varsRaw;
                 $existing = ProductVariant::find($vid);
                 if ($existing) {
@@ -497,56 +840,67 @@ class ProductController extends Controller
                 }
             } else {
                 $first = reset($varsRaw);
-                if (is_array($first) && array_key_exists('sku', $first)) {
+                if (is_array($first)) {
                     // array of objects => create new variants and assign
                     foreach ($varsRaw as $v) {
                         $pv = null;
-                        if (!empty($v['id'])) {
-                            $pv = ProductVariant::find((int)$v['id']);
+                        if (! empty($v['id'])) {
+                            $pv = ProductVariant::find((int) $v['id']);
                         }
                         if ($pv) {
                             // update existing
                             if (array_key_exists('sku', $v)) {
                                 $pv->sku = $v['sku'] ?? $pv->sku;
                                 if ($pv->sku && ProductVariant::where('sku', $pv->sku)->where('id', '!=', $pv->id)->exists()) {
-                                    $pv->sku = $pv->sku . '-' . uniqid();
+                                    $pv->sku = $pv->sku.'-'.uniqid();
                                 }
                             }
-                            if (array_key_exists('price', $v)) $pv->price = $v['price'];
-                            if (array_key_exists('discount_price', $v)) $pv->discount_price = $v['discount_price'];
-                            if (array_key_exists('stock', $v)) $pv->stock = $v['stock'];
-                            if (array_key_exists('image', $v)) $pv->image = $v['image'];
+                            if (array_key_exists('price', $v)) {
+                                $pv->price = $v['price'];
+                            }
+                            if (array_key_exists('discount_price', $v)) {
+                                $pv->discount_price = $v['discount_price'];
+                            }
+                            if (array_key_exists('stock', $v)) {
+                                $pv->stock = $v['stock'];
+                            }
+                            if (array_key_exists('image', $v)) {
+                                $pv->image = ! empty($v['image']) ? $v['image'] : $product->image;
+                            }
                             $pv->product_id = $product->id;
                             $pv->save();
                         } else {
                             // create new
-                            $pv = new ProductVariant();
+                            $pv = new ProductVariant;
                             $pv->sku = $v['sku'] ?? null;
                             if ($pv->sku && ProductVariant::where('sku', $pv->sku)->exists()) {
-                                $pv->sku = $pv->sku . '-' . uniqid();
+                                $pv->sku = $pv->sku.'-'.uniqid();
                             }
                             $pv->price = $v['price'] ?? 0;
                             $pv->discount_price = $v['discount_price'] ?? null;
                             $pv->stock = $v['stock'] ?? 0;
-                            $pv->image = $v['image'] ?? null;
+                            $pv->image = ! empty($v['image']) ? $v['image'] : $product->image;
                             $pv->product_id = $product->id;
                             $pv->save();
                         }
 
                         // sync attribute values if provided
-                        if (!empty($v['attribute_value_ids']) && is_array($v['attribute_value_ids'])) {
+                        if (! empty($v['attribute_value_ids']) && is_array($v['attribute_value_ids'])) {
                             $pv->attributeValues()->sync(array_map('intval', $v['attribute_value_ids']));
-                        } elseif (!empty($v['attribute_values']) && is_array($v['attribute_values'])) {
+                        } elseif (! empty($v['attribute_values']) && is_array($v['attribute_values'])) {
                             $ids = array_map(function ($it) {
-                                if (is_array($it) && isset($it['id'])) return (int)$it['id'];
-                                return (int)$it;
+                                if (is_array($it) && isset($it['id'])) {
+                                    return (int) $it['id'];
+                                }
+
+                                return (int) $it;
                             }, $v['attribute_values']);
                             $pv->attributeValues()->sync(array_filter($ids));
                         }
                     }
                 } else {
                     // array of ids -> make these the product's variants; unassign others
-                    $newIds = array_map(fn($v) => (int)$v, $varsRaw);
+                    $newIds = array_map(fn ($v) => (int) $v, $varsRaw);
                     // remove variants that currently belong to this product but are not in newIds
                     // but skip deleting any variants that are referenced by order_details
                     $toRemove = ProductVariant::where('product_id', $product->id)
@@ -573,11 +927,31 @@ class ProductController extends Controller
             }
         }
 
+        if ((empty($validated['variants']) || $validated['variants'] === null)
+            && array_key_exists('attribute_value_ids', $validated)
+            && is_array($validated['attribute_value_ids'])) {
+            $attributeValueIds = array_filter(array_map('intval', $validated['attribute_value_ids']));
+            if (! empty($attributeValueIds)) {
+                $pv = new ProductVariant;
+                $pv->product_id = $product->id;
+                $pv->sku = substr(preg_replace('/[^A-Za-z0-9]+/', '-', strtolower($product->name ?? 'variant')), 0, 40).'-'.uniqid();
+                if (ProductVariant::where('sku', $pv->sku)->exists()) {
+                    $pv->sku .= '-'.uniqid();
+                }
+                $pv->price = $product->price;
+                $pv->discount_price = $product->discount_price;
+                $pv->stock = 0;
+                $pv->image = $product->image;
+                $pv->save();
+                $pv->attributeValues()->sync($attributeValueIds);
+            }
+        }
+
         $product->load(['variants', 'categories']);
 
         $message = null;
-        if (!empty($blocked ?? [])) {
-            $message = 'Some variants could not be removed because they are referenced by order_details: ' . implode(',', $blocked);
+        if (! empty($blocked ?? [])) {
+            $message = 'Some variants could not be removed because they are referenced by order_details: '.implode(',', $blocked);
         }
 
         $payload = [
@@ -594,29 +968,118 @@ class ProductController extends Controller
     }
 
     /**
-     * Delete a product (admin only).
+     * Soft delete a product (admin only).
      */
-    public function destroy(Request $request, $id)
+    #[OA\Delete(
+        path: '/api/products/{id}',
+        operationId: 'deleteProduct',
+        summary: 'Xóa mềm sản phẩm',
+        description: 'Đánh dấu sản phẩm đã xóa. Các biến thể và dữ liệu đơn hàng liên quan vẫn được giữ lại.',
+        security: [['bearerAuth' => []]],
+        tags: ['Sản phẩm'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'), example: 1),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Xóa mềm sản phẩm thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 200),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, example: null),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+            new OA\Response(response: 404, description: 'Không tìm thấy sản phẩm'),
+        ]
+    )]
+    public function destroy(int $id): JsonResponse
     {
-        // require admin role
-        $user = $request->user();
-        if (!$user || (($user->role ?? null) !== 'admin')) {
-            return response()->json([
-                'status' => 403,
-                'success' => false,
-                'message' => 'Forbidden: admin only',
-                'data' => null,
-            ], 403);
-        }
-
         $product = Product::findOrFail($id);
         $product->delete();
 
         return response()->json([
             'status' => 200,
             'success' => true,
-            'message' => 'Product deleted',
+            'message' => null,
             'data' => null,
+        ], 200);
+    }
+
+    public function addFavorite(Request $request, $productId)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json([
+                'status' => 401,
+                'success' => false,
+                'message' => 'Unauthorized: login required',
+                'data' => null,
+            ], 401);
+        }
+
+        $product = Product::findOrFail($productId);
+        $user->favorites()->firstOrCreate(['product_id' => $product->id]);
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => 'Product added to favorites',
+            'data' => true,
+        ], 200);
+    }
+
+    public function removeFavorite(Request $request, $productId)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json([
+                'status' => 401,
+                'success' => false,
+                'message' => 'Unauthorized: login required',
+                'data' => null,
+            ], 401);
+        }
+
+        $product = Product::findOrFail($productId);
+        $user->favorites()->where('product_id', $product->id)->delete();
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => 'Product removed from favorites',
+            'data' => true,
+        ], 200);
+    }
+
+    public function getUserFavorites(Request $request, $userId)
+    {
+        $user = $request->user();
+        if (! $user || $user->id != $userId) {
+            return response()->json([
+                'status' => 403,
+                'success' => false,
+                'message' => 'Forbidden: cannot access other user\'s favorites',
+                'data' => null,
+            ], 403);
+        }
+
+        $favorites = $user->favorites()->with('product')->get();
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'items' => $favorites->map(fn ($fav) => $fav->product)->filter(),
+                'pagination' => null,
+            ],
         ], 200);
     }
 }

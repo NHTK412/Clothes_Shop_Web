@@ -6,11 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class AttributeType extends Model
 {
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'display_name'];
 
     public function attributeValues()
     {
         return $this->hasMany(AttributeValue::class);
     }
-
 }

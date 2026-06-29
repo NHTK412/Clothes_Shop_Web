@@ -4,20 +4,159 @@ info:
   description: 'Tài liệu API cho hệ thống cửa hàng quần áo'
   version: 1.0.0
 paths:
+  /api/addresses:
+    get:
+      tags:
+        - 'Địa chỉ'
+      summary: 'Lấy danh sách địa chỉ của người dùng'
+      operationId: getUserAddresses
+      responses:
+        200:
+          description: 'Lấy danh sách địa chỉ thành công'
+        401:
+          description: 'Chưa xác thực'
+      security:
+        -
+          bearerAuth: []
+    post:
+      tags:
+        - 'Địa chỉ'
+      summary: 'Thêm địa chỉ mới'
+      operationId: createUserAddress
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - ward_code
+                - ward_name
+                - province_id
+                - province_name
+                - specific_address
+                - full_name
+                - phone
+              properties:
+                ward_code:
+                  type: string
+                  example: '90768'
+                ward_name:
+                  type: string
+                  example: 'Phường An Khánh'
+                province_id:
+                  type: integer
+                  example: 202
+                province_name:
+                  type: string
+                  example: 'Hồ Chí Minh'
+                specific_address:
+                  type: string
+                  example: '12 Nguyễn Văn A'
+                full_name:
+                  type: string
+                  example: 'Nguyễn Văn A'
+                phone:
+                  type: string
+                  example: '0901234567'
+                is_default:
+                  type: boolean
+                  example: true
+              type: object
+      responses:
+        201:
+          description: 'Thêm địa chỉ thành công'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  '/api/addresses/{address}':
+    put:
+      tags:
+        - 'Địa chỉ'
+      summary: 'Cập nhật địa chỉ'
+      operationId: updateUserAddress
+      parameters:
+        -
+          name: address
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Cập nhật địa chỉ thành công'
+        404:
+          description: 'Không tìm thấy địa chỉ'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+    delete:
+      tags:
+        - 'Địa chỉ'
+      summary: 'Xóa địa chỉ'
+      operationId: deleteUserAddress
+      parameters:
+        -
+          name: address
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Xóa địa chỉ thành công'
+        404:
+          description: 'Không tìm thấy địa chỉ'
+      security:
+        -
+          bearerAuth: []
+  '/api/addresses/{address}/default':
+    put:
+      tags:
+        - 'Địa chỉ'
+      summary: 'Đặt địa chỉ làm mặc định'
+      operationId: setDefaultUserAddress
+      parameters:
+        -
+          name: address
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Đặt địa chỉ mặc định thành công'
+        404:
+          description: 'Không tìm thấy địa chỉ'
+      security:
+        -
+          bearerAuth: []
   /api/attributes:
     get:
       tags:
         - 'Thuộc tính'
       summary: 'Danh sách loại thuộc tính'
-      operationId: ce9a20aae3f6b1c28c19bcbdc4c2a74c
+      operationId: listAttributeTypes
       responses:
         200:
           description: 'Lấy danh sách loại thuộc tính thành công'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AttributeType'
     post:
       tags:
         - 'Thuộc tính'
       summary: 'Tạo loại thuộc tính'
-      operationId: a46425fc9f17af1f977c0c1252e72b12
+      operationId: createAttributeType
       requestBody:
         required: true
         content:
@@ -29,26 +168,34 @@ paths:
                 name:
                   type: string
                   example: 'màu sắc'
-                values:
-                  type: array
-                  items:
-                    type: string
-                  example:
-                    - đen
-                    - trắng
-                    - xanh
+                display_name:
+                  description: 'Mặc định bằng name nếu không gửi.'
+                  type: string
+                  example: 'Màu sắc'
+                  nullable: true
               type: object
       responses:
         201:
           description: 'Tạo loại thuộc tính thành công'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttributeType'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
         422:
           description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
   '/api/attributes/{id}':
     get:
       tags:
         - 'Thuộc tính'
       summary: 'Chi tiết loại thuộc tính'
-      operationId: 03026d8d2dd835c03757c25761a026ba
+      operationId: getAttributeType
       parameters:
         -
           name: id
@@ -60,13 +207,17 @@ paths:
       responses:
         200:
           description: 'Lấy thông tin loại thuộc tính thành công'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttributeType'
         404:
           description: 'Không tìm thấy loại thuộc tính'
     put:
       tags:
         - 'Thuộc tính'
       summary: 'Cập nhật loại thuộc tính'
-      operationId: 05c518b2ab1c78dda2c552e3d45fa6e6
+      operationId: updateAttributeType
       parameters:
         -
           name: id
@@ -80,33 +231,38 @@ paths:
         content:
           application/json:
             schema:
-              required:
-                - name
               properties:
                 name:
                   type: string
                   example: 'kích cỡ'
-                values:
-                  type: array
-                  items:
-                    type: string
-                  example:
-                    - S
-                    - M
-                    - L
+                display_name:
+                  type: string
+                  example: 'Kích cỡ'
               type: object
       responses:
         200:
           description: 'Cập nhật loại thuộc tính thành công'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttributeType'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
         404:
           description: 'Không tìm thấy loại thuộc tính'
         422:
           description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
     delete:
       tags:
         - 'Thuộc tính'
       summary: 'Xóa loại thuộc tính'
-      operationId: f2b55a269b833b3ac5c39b93587ba527
+      description: 'Không cho phép xóa nếu bất kỳ giá trị nào thuộc loại này đang được gắn với biến thể sản phẩm.'
+      operationId: deleteAttributeType
       parameters:
         -
           name: id
@@ -118,28 +274,358 @@ paths:
       responses:
         200:
           description: 'Xóa loại thuộc tính thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
         404:
           description: 'Không tìm thấy loại thuộc tính'
-  '/api/attributes/{idOrName}/values':
+        409:
+          description: 'Có giá trị thuộc tính đang được sản phẩm sử dụng'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 409
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Không thể xóa vì có giá trị thuộc tính đang được sử dụng.'
+                  data:
+                    type: object
+                type: object
+      security:
+        -
+          bearerAuth: []
+  '/api/attributes/{attributeType}/values':
     get:
       tags:
         - 'Thuộc tính'
-      summary: 'Danh sách giá trị của thuộc tính'
-      description: 'Trả về danh sách giá trị theo id hoặc tên loại thuộc tính.'
-      operationId: d39497cc482e5fa30d6a909cc7ec3b6a
+      summary: 'Danh sách giá trị thuộc tính'
+      description: 'Có thể truyền ID hoặc name của loại thuộc tính.'
+      operationId: listAttributeValues
       parameters:
         -
-          name: idOrName
+          name: attributeType
           in: path
           required: true
           schema:
             type: string
-          example: 'màu sắc'
+          example: color
       responses:
         200:
           description: 'Lấy danh sách giá trị thuộc tính thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AttributeValue'
+                type: object
         404:
           description: 'Không tìm thấy loại thuộc tính'
+    post:
+      tags:
+        - 'Thuộc tính'
+      summary: 'Tạo giá trị thuộc tính'
+      operationId: createAttributeValue
+      parameters:
+        -
+          name: attributeType
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - value
+              properties:
+                value:
+                  type: string
+                  example: black
+                display_value:
+                  description: 'Mặc định bằng value nếu không gửi.'
+                  type: string
+                  example: Đen
+                  nullable: true
+                meta_data:
+                  type: object
+                  example:
+                    hex: '#000000'
+                  nullable: true
+              type: object
+      responses:
+        201:
+          description: 'Tạo giá trị thuộc tính thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 201
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    $ref: '#/components/schemas/AttributeValue'
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy loại thuộc tính'
+        422:
+          description: 'Dữ liệu không hợp lệ hoặc value đã tồn tại'
+      security:
+        -
+          bearerAuth: []
+  '/api/attributes/{attributeType}/values/{attributeValue}':
+    get:
+      tags:
+        - 'Thuộc tính'
+      summary: 'Chi tiết giá trị thuộc tính'
+      operationId: getAttributeValue
+      parameters:
+        -
+          name: attributeType
+          in: path
+          required: true
+          schema:
+            type: string
+          example: color
+        -
+          name: attributeValue
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Lấy giá trị thuộc tính thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    $ref: '#/components/schemas/AttributeValue'
+                type: object
+        404:
+          description: 'Không tìm thấy loại hoặc giá trị thuộc tính'
+    put:
+      tags:
+        - 'Thuộc tính'
+      summary: 'Cập nhật giá trị thuộc tính'
+      operationId: updateAttributeValue
+      parameters:
+        -
+          name: attributeType
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+        -
+          name: attributeValue
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                value:
+                  type: string
+                  example: black
+                display_value:
+                  type: string
+                  example: 'Màu đen'
+                meta_data:
+                  type: object
+                  example:
+                    hex: '#000000'
+                  nullable: true
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật giá trị thuộc tính thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    $ref: '#/components/schemas/AttributeValue'
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy loại hoặc giá trị thuộc tính'
+        422:
+          description: 'Dữ liệu không hợp lệ hoặc value đã tồn tại'
+      security:
+        -
+          bearerAuth: []
+    delete:
+      tags:
+        - 'Thuộc tính'
+      summary: 'Xóa giá trị thuộc tính'
+      description: 'Không cho phép xóa nếu giá trị đang được gắn với bất kỳ biến thể sản phẩm nào.'
+      operationId: deleteAttributeValue
+      parameters:
+        -
+          name: attributeType
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+        -
+          name: attributeValue
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Xóa giá trị thuộc tính thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy loại hoặc giá trị thuộc tính'
+        409:
+          description: 'Giá trị thuộc tính đang được sản phẩm sử dụng'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 409
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Không thể xóa vì giá trị thuộc tính đang được sử dụng.'
+                  data:
+                    properties:
+                      usages:
+                        type: array
+                        items:
+                          properties:
+                            product_id:
+                              type: integer
+                              example: 10
+                            product_name:
+                              type: string
+                              example: 'Áo thun'
+                              nullable: true
+                            product_variant_id:
+                              type: integer
+                              example: 21
+                            sku:
+                              type: string
+                              example: AO-DEN-M
+                          type: object
+                    type: object
+                type: object
+      security:
+        -
+          bearerAuth: []
   /api/auth/login:
     post:
       tags:
@@ -280,12 +766,460 @@ paths:
           description: 'Đặt lại mật khẩu thất bại'
         422:
           description: 'Dữ liệu không hợp lệ'
+  /api/cart/items:
+    get:
+      tags:
+        - 'Giỏ hàng'
+      summary: 'Lấy danh sách sản phẩm trong giỏ hàng hiện tại'
+      description: 'Trả về danh sách sản phẩm trong giỏ hàng của người dùng đã đăng nhập, bao gồm tên sản phẩm, thuộc tính biến thể, hình ảnh, giá gốc và giá giảm.'
+      operationId: getCurrentCartItems
+      responses:
+        200:
+          description: 'Lấy danh sách sản phẩm trong giỏ hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          properties:
+                            cart_item_id:
+                              type: integer
+                              example: 1
+                            product_variant_id:
+                              type: integer
+                              example: 1
+                            product_name:
+                              type: string
+                              example: 'Áo thun basic'
+                            attributes:
+                              type: array
+                              items:
+                                properties:
+                                  type:
+                                    type: string
+                                    example: color
+                                  display_type:
+                                    type: string
+                                    example: 'Màu sắc'
+                                  value:
+                                    type: string
+                                    example: black
+                                  display_value:
+                                    type: string
+                                    example: Đen
+                                type: object
+                            image:
+                              type: string
+                              example: products/ao-thun-den.jpg
+                              nullable: true
+                            original_price:
+                              type: number
+                              format: float
+                              example: 199000
+                            discount_price:
+                              type: number
+                              format: float
+                              example: 149000
+                              nullable: true
+                            quantity:
+                              type: integer
+                              example: 2
+                          type: object
+                      pagination:
+                        type: object
+                        example: null
+                        nullable: true
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+    post:
+      tags:
+        - 'Giỏ hàng'
+      summary: 'Thêm sản phẩm vào giỏ hàng'
+      description: 'Tự tạo giỏ hàng cho người dùng đã đăng nhập nếu chưa có. Nếu biến thể sản phẩm đã tồn tại trong giỏ hàng, hệ thống sẽ cộng thêm số lượng.'
+      operationId: addCartItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - product_variant_id
+              properties:
+                product_variant_id:
+                  description: 'ID của biến thể sản phẩm cần thêm vào giỏ hàng.'
+                  type: integer
+                  example: 1
+                quantity:
+                  description: 'Số lượng cần thêm. Mặc định là 1.'
+                  type: integer
+                  example: 1
+                  minimum: 1
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật số lượng sản phẩm trong giỏ hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          user_id:
+                            type: integer
+                            example: 1
+                          items:
+                            type: array
+                            items:
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 1
+                                cart_id:
+                                  type: integer
+                                  example: 1
+                                product_variant_id:
+                                  type: integer
+                                  example: 1
+                                quantity:
+                                  type: integer
+                                  example: 2
+                              type: object
+                        type: object
+                      pagination:
+                        type: object
+                        example: null
+                        nullable: true
+                    type: object
+                type: object
+        201:
+          description: 'Thêm sản phẩm vào giỏ hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 201
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: object
+                      pagination:
+                        type: object
+                        example: null
+                        nullable: true
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'Dữ liệu không hợp lệ hoặc không đủ tồn kho'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+  '/api/cart/items/{cartItem}':
+    put:
+      tags:
+        - 'Giỏ hàng'
+      summary: 'Cập nhật số lượng sản phẩm trong giỏ hàng'
+      description: 'Cập nhật số lượng của một sản phẩm trong giỏ hàng hiện tại. Nếu số lượng nhỏ hơn hoặc bằng 0, sản phẩm sẽ bị xóa khỏi giỏ hàng. Nếu số lượng vượt quá tồn kho hiện tại, API trả lỗi 422.'
+      operationId: updateCartItem
+      parameters:
+        -
+          name: cartItem
+          in: path
+          description: 'ID của item trong giỏ hàng.'
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - quantity
+              properties:
+                quantity:
+                  description: 'Số lượng mới. Nhỏ hơn hoặc bằng 0 sẽ xóa sản phẩm khỏi giỏ hàng.'
+                  type: integer
+                  example: 2
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật giỏ hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          properties:
+                            cart_item_id:
+                              type: integer
+                              example: 1
+                            product_variant_id:
+                              type: integer
+                              example: 1
+                            product_name:
+                              type: string
+                              example: 'Áo thun basic'
+                            image:
+                              type: string
+                              example: products/ao-thun-den.jpg
+                              nullable: true
+                            original_price:
+                              type: number
+                              format: float
+                              example: 199000
+                            discount_price:
+                              type: number
+                              format: float
+                              example: 149000
+                              nullable: true
+                            quantity:
+                              type: integer
+                              example: 2
+                          type: object
+                      pagination:
+                        type: object
+                        example: null
+                        nullable: true
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        404:
+          description: 'Không tìm thấy sản phẩm trong giỏ hàng'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 404
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'No query results for model.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'Dữ liệu không hợp lệ hoặc vượt quá tồn kho hiện tại'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+  /api/cart/items/count:
+    get:
+      tags:
+        - 'Giỏ hàng'
+      summary: 'Lấy số lượng sản phẩm trong giỏ hàng hiện tại'
+      description: 'Trả về tổng số lượng sản phẩm trong giỏ hàng của người dùng đã đăng nhập. Nếu người dùng chưa có giỏ hàng, count trả về 0.'
+      operationId: getCurrentCartItemCount
+      responses:
+        200:
+          description: 'Lấy số lượng sản phẩm trong giỏ hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      count:
+                        type: integer
+                        example: 3
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
   /api/categories:
     get:
       tags:
         - 'Danh mục'
       summary: 'Danh sách danh mục'
-      operationId: 3f5817a34833d0a1f4af4548dd3aeaba
+      description: 'Lấy danh sách danh mục kèm các danh mục con. Truyền per_page=0 để lấy toàn bộ.'
+      operationId: listCategories
       parameters:
         -
           name: per_page
@@ -293,6 +1227,9 @@ paths:
           required: false
           schema:
             type: integer
+            default: 20
+            maximum: 100
+            minimum: 0
           example: 20
         -
           name: page
@@ -300,15 +1237,57 @@ paths:
           required: false
           schema:
             type: integer
+            default: 1
+            minimum: 1
           example: 1
       responses:
         200:
           description: 'Lấy danh sách danh mục thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CategoryDetail'
+                      pagination:
+                        properties:
+                          page:
+                            type: integer
+                            example: 1
+                          limit:
+                            type: integer
+                            example: 20
+                          totalItems:
+                            type: integer
+                            example: 15
+                          totalPages:
+                            type: integer
+                            example: 1
+                        type: object
+                        nullable: true
+                    type: object
+                type: object
+        422:
+          description: 'Dữ liệu phân trang không hợp lệ'
     post:
       tags:
         - 'Danh mục'
       summary: 'Tạo danh mục'
-      operationId: 71fcad552bb0eaba9fb191fd8d8dcab0
+      operationId: createCategory
       requestBody:
         required: true
         content:
@@ -324,10 +1303,42 @@ paths:
                   type: integer
                   example: null
                   nullable: true
+                image:
+                  description: 'URL ảnh danh mục. Nếu không gửi hoặc gửi null/rỗng, database sử dụng ảnh mặc định.'
+                  type: string
+                  format: uri
+                  example: 'https://cdn.example.com/categories/ao-thun.jpg'
+                  nullable: true
               type: object
       responses:
         201:
           description: 'Tạo danh mục thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 201
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        $ref: '#/components/schemas/CategorySummary'
+                      pagination:
+                        type: object
+                        example: null
+                        nullable: true
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
         403:
           description: 'Chỉ admin được phép thao tác'
         422:
@@ -340,7 +1351,7 @@ paths:
       tags:
         - 'Danh mục'
       summary: 'Chi tiết danh mục'
-      operationId: c68e76d323c008827a9e47398b1583de
+      operationId: getCategory
       parameters:
         -
           name: id
@@ -352,13 +1363,37 @@ paths:
       responses:
         200:
           description: 'Lấy thông tin danh mục thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        $ref: '#/components/schemas/CategoryDetail'
+                      pagination:
+                        type: object
+                        example: null
+                        nullable: true
+                    type: object
+                type: object
         404:
           description: 'Không tìm thấy danh mục'
     put:
       tags:
         - 'Danh mục'
       summary: 'Cập nhật danh mục'
-      operationId: 0e686b2748211cc688333ed705dc111f
+      operationId: updateCategory
       parameters:
         -
           name: id
@@ -380,10 +1415,42 @@ paths:
                   type: integer
                   example: null
                   nullable: true
+                image:
+                  description: 'URL ảnh mới. Nếu không gửi hoặc gửi null/rỗng, ảnh hiện tại được giữ nguyên.'
+                  type: string
+                  format: uri
+                  example: 'https://cdn.example.com/categories/ao-so-mi.jpg'
+                  nullable: true
               type: object
       responses:
         200:
           description: 'Cập nhật danh mục thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        $ref: '#/components/schemas/CategoryDetail'
+                      pagination:
+                        type: object
+                        example: null
+                        nullable: true
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
         403:
           description: 'Chỉ admin được phép thao tác'
         404:
@@ -396,8 +1463,9 @@ paths:
     delete:
       tags:
         - 'Danh mục'
-      summary: 'Xóa danh mục'
-      operationId: 4c12e22a7f8c617bd83bfa1fdc05428d
+      summary: 'Xóa mềm danh mục'
+      description: 'Đánh dấu danh mục đã xóa và đưa các danh mục con trực tiếp của nó về cấp gốc.'
+      operationId: deleteCategory
       parameters:
         -
           name: id
@@ -409,10 +1477,410 @@ paths:
       responses:
         200:
           description: 'Xóa danh mục thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        401:
+          description: 'Chưa xác thực'
         403:
           description: 'Chỉ admin được phép thao tác'
         404:
           description: 'Không tìm thấy danh mục'
+      security:
+        -
+          bearerAuth: []
+  /api/customers:
+    get:
+      tags:
+        - 'Khách hàng'
+      summary: 'Danh sách khách hàng'
+      description: 'Danh sách khách hàng dành cho quản trị viên.'
+      operationId: listCustomers
+      parameters:
+        -
+          name: search
+          in: query
+          description: 'Tìm theo tên, email hoặc số điện thoại'
+          required: false
+          schema:
+            type: string
+        -
+          name: status
+          in: query
+          description: 'Lọc theo trạng thái'
+          required: false
+          schema:
+            type: string
+            enum:
+              - ACTIVE
+              - INACTIVE
+        -
+          name: per_page
+          in: query
+          description: 'Số lượng mỗi trang'
+          required: false
+          schema:
+            type: integer
+            default: 15
+      responses:
+        200:
+          description: 'Lấy danh sách khách hàng thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+      security:
+        -
+          bearerAuth: []
+  '/api/customers/{customer}':
+    get:
+      tags:
+        - 'Khách hàng'
+      summary: 'Chi tiết khách hàng'
+      description: 'Xem thông tin chi tiết một khách hàng.'
+      operationId: showCustomer
+      responses:
+        200:
+          description: 'Lấy thông tin khách hàng thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy khách hàng'
+      security:
+        -
+          bearerAuth: []
+    delete:
+      tags:
+        - 'Khách hàng'
+      summary: 'Vô hiệu hóa khách hàng'
+      description: 'Đặt trạng thái khách hàng thành INACTIVE.'
+      operationId: deleteCustomer
+      responses:
+        200:
+          description: 'Vô hiệu hóa khách hàng thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy khách hàng'
+      security:
+        -
+          bearerAuth: []
+    patch:
+      tags:
+        - 'Khách hàng'
+      summary: 'Cập nhật khách hàng'
+      description: 'Cập nhật thông tin trạng thái, vai trò hoặc số điện thoại của khách hàng.'
+      operationId: updateCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                name:
+                  type: string
+                  example: 'Nguyễn Văn A'
+                  nullable: true
+                phone:
+                  type: string
+                  example: '0901234567'
+                  nullable: true
+                status:
+                  type: string
+                  example: ACTIVE
+                  enum:
+                    - ACTIVE
+                    - INACTIVE
+                role:
+                  type: string
+                  example: ROLE_CUSTOMER
+                  enum:
+                    - ROLE_CUSTOMER
+                    - ROLE_ADMIN
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật khách hàng thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  /api/ghn/provinces:
+    get:
+      tags:
+        - GHN
+      summary: 'Lấy danh sách tỉnh/thành từ GHN'
+      description: 'Chuyển tiếp API GHN và chỉ trả về các trường cần thiết gồm mã tỉnh, tên tỉnh và mã code.'
+      operationId: getGhnProvinces
+      responses:
+        200:
+          description: 'Lấy danh sách tỉnh/thành thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          properties:
+                            province_id:
+                              type: integer
+                              example: 202
+                            province_name:
+                              type: string
+                              example: 'Hồ Chí Minh'
+                            code:
+                              type: string
+                              example: '202'
+                          type: object
+                      pagination:
+                        type: object
+                        example: null
+                        nullable: true
+                    type: object
+                type: object
+  /api/ghn/districts:
+    get:
+      tags:
+        - GHN
+      summary: 'Lấy danh sách quận/huyện từ GHN'
+      description: 'Lấy danh sách quận/huyện theo mã tỉnh/thành và chỉ trả về các trường cần thiết.'
+      operationId: getGhnDistricts
+      parameters:
+        -
+          name: province_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 202
+      responses:
+        200:
+          description: 'Lấy danh sách quận/huyện thành công'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+  /api/ghn/wards:
+    get:
+      tags:
+        - GHN
+      summary: 'Lấy danh sách phường/xã từ GHN'
+      description: 'Lấy danh sách phường/xã theo mã quận/huyện và chỉ trả về các trường cần thiết.'
+      operationId: getGhnWards
+      parameters:
+        -
+          name: province_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 3695
+      responses:
+        200:
+          description: 'Lấy danh sách phường/xã thành công'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+  /api/ghn/shipping-fee:
+    get:
+      tags:
+        - GHN
+      summary: 'Tính phí giao hàng GHN'
+      description: 'Tính phí giao hàng bằng GHN với thông số gói hàng mặc định cho sản phẩm quần áo. Danh sách sản phẩm được lấy từ giỏ hàng của người dùng đang đăng nhập.'
+      operationId: calculateGhnShippingFee
+      parameters:
+        -
+          name: to_ward_id_v2
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 1003544
+        -
+          name: to_district_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 1000001
+      responses:
+        200:
+          description: 'Tính phí giao hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      total:
+                        type: integer
+                        example: 49500
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  /api/ghn/detail:
+    get:
+      tags:
+        - GHN
+      summary: 'Lấy chi tiết đơn giao hàng GHN'
+      description: 'Lấy lịch sử trạng thái đơn giao hàng từ GHN theo mã vận đơn order_code. Chỉ người dùng sở hữu đơn hàng mới được xem.'
+      operationId: getGhnOrderDetail
+      parameters:
+        -
+          name: order_code
+          in: query
+          description: 'Mã vận đơn GHN.'
+          required: true
+          schema:
+            type: string
+          example: LX8E8H
+      responses:
+        200:
+          description: 'Lấy chi tiết đơn giao hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: array
+                    items:
+                      properties:
+                        status:
+                          type: string
+                          example: picking
+                        payment_type_id:
+                          type: integer
+                          example: 1
+                        trip_code:
+                          type: string
+                          example: ''
+                        updated_date:
+                          type: string
+                          format: date-time
+                          example: '2026-06-21T10:27:27.812Z'
+                      type: object
+                type: object
+        400:
+          description: 'GHN trả lỗi hoặc mã vận đơn không hợp lệ'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 400
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'GHN request failed.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'Thiếu hoặc sai dữ liệu order_code'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        502:
+          description: 'Không thể kết nối GHN'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 502
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'cURL error message'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
       security:
         -
           bearerAuth: []
@@ -440,6 +1908,1636 @@ paths:
       responses:
         302:
           description: 'Chuyển hướng đến trang đặt lại mật khẩu ở frontend'
+  /api/order:
+    get:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Lấy danh sách đơn hàng của người dùng'
+      description: 'Trả về danh sách đơn hàng của người dùng đang đăng nhập, có phân trang và thông tin sản phẩm cơ bản trong từng đơn.'
+      operationId: getUserOrders
+      parameters:
+        -
+          name: status
+          in: query
+          description: 'Lọc theo trạng thái đơn hàng.'
+          required: false
+          schema:
+            type: string
+            enum:
+              - PENDING_PAYMENT
+              - CONFIRMED
+              - SHIPPING
+              - COMPLETED
+              - CANCELLED
+              - RETURNED
+        -
+          name: page
+          in: query
+          description: 'Trang hiện tại.'
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        -
+          name: per_page
+          in: query
+          description: 'Số đơn hàng trên mỗi trang.'
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+          example: 10
+      responses:
+        200:
+          description: 'Lấy danh sách đơn hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            status:
+                              type: string
+                              example: CONFIRMED
+                              enum:
+                                - PENDING_PAYMENT
+                                - CONFIRMED
+                                - SHIPPING
+                                - COMPLETED
+                                - CANCELLED
+                                - RETURNED
+                            final_price:
+                              type: number
+                              format: float
+                              example: 298000
+                            created_at:
+                              type: string
+                              format: date-time
+                              example: '2026-06-22T12:00:00.000000Z'
+                            full_name:
+                              type: string
+                              example: 'Nguyễn Văn A'
+                            order_details:
+                              type: array
+                              items:
+                                properties:
+                                  product_variant_id:
+                                    type: integer
+                                    example: 1
+                                  quantity:
+                                    type: integer
+                                    example: 2
+                                  image:
+                                    type: string
+                                    example: products/ao-so-mi.jpg
+                                    nullable: true
+                                type: object
+                          type: object
+                      pagination:
+                        properties:
+                          current_page:
+                            type: integer
+                            example: 1
+                          per_page:
+                            type: integer
+                            example: 10
+                          total:
+                            type: integer
+                            example: 25
+                          last_page:
+                            type: integer
+                            example: 3
+                        type: object
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'Trạng thái hoặc dữ liệu phân trang không hợp lệ'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+    post:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Tạo đơn hàng từ giỏ hàng'
+      description: 'Tạo đơn từ giỏ hàng, kiểm tra lại tồn kho và giá, áp dụng voucher rồi tạo vận đơn GHN. COD được tạo ở trạng thái CONFIRMED với payment UNPAID; VNPAY được tạo ở trạng thái PENDING_PAYMENT với payment UNPAID.'
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - address_id
+              properties:
+                address_id:
+                  type: integer
+                  example: 1
+                gift_code:
+                  description: 'Mã voucher đang hoạt động và còn hạn.'
+                  type: string
+                  example: WELCOME10
+                  nullable: true
+                payment_method:
+                  description: 'Mặc định là COD.'
+                  type: string
+                  example: COD
+                  default: COD
+                  enum:
+                    - COD
+                    - VNPAY
+                expected_product_total:
+                  description: 'Tổng tiền sản phẩm FE đang hiển thị, chưa gồm phí vận chuyển và voucher'
+                  type: number
+                  format: float
+                  example: 298000
+                  nullable: true
+              type: object
+      responses:
+        201:
+          description: 'Tạo đơn hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 201
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      user_id:
+                        type: integer
+                        example: 1
+                      total_price:
+                        type: number
+                        format: float
+                        example: 398000
+                      discount_price:
+                        type: number
+                        format: float
+                        example: 100000
+                      final_price:
+                        type: number
+                        format: float
+                        example: 298000
+                      ship_price:
+                        type: number
+                        format: float
+                        example: 30000
+                        nullable: true
+                      discount_ship_price:
+                        type: number
+                        format: float
+                        example: 0
+                      status:
+                        type: string
+                        example: CONFIRMED
+                        enum:
+                          - PENDING_PAYMENT
+                          - CONFIRMED
+                          - SHIPPING
+                          - COMPLETED
+                          - CANCELLED
+                          - RETURNED
+                      ghn_order_code:
+                        type: string
+                        example: LJXX123456
+                        nullable: true
+                      ward_code:
+                        type: string
+                        example: '1003544'
+                      ward_name:
+                        type: string
+                        example: 'Phường An Khánh'
+                      province_id:
+                        type: integer
+                        example: 202
+                      province_name:
+                        type: string
+                        example: 'Hồ Chí Minh'
+                      specific_address:
+                        type: string
+                        example: '12 Nguyễn Văn A'
+                      full_name:
+                        type: string
+                        example: 'Nguyễn Văn A'
+                      phone:
+                        type: string
+                        example: '0901234567'
+                      voucher_code:
+                        type: string
+                        example: WELCOME10
+                        nullable: true
+                      voucher_type:
+                        type: string
+                        example: ORDER
+                        nullable: true
+                        enum:
+                          - ORDER
+                          - SHIPPING
+                      order_details:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            product_variant_id:
+                              type: integer
+                              example: 1
+                            quantity:
+                              type: integer
+                              example: 2
+                            unit_price:
+                              type: number
+                              format: float
+                              example: 199000
+                            unit_discount_price:
+                              type: number
+                              format: float
+                              example: 50000
+                              nullable: true
+                          type: object
+                      payment:
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          method:
+                            type: string
+                            example: COD
+                            enum:
+                              - COD
+                              - VNPAY
+                          status:
+                            type: string
+                            example: UNPAID
+                            enum:
+                              - UNPAID
+                              - PAID
+                              - REFUNDED
+                        type: object
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'Dữ liệu không hợp lệ hoặc giỏ hàng trống'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+  /api/admin/orders:
+    get:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Danh sách đơn hàng cho quản trị viên'
+      description: 'Lấy toàn bộ đơn hàng trong hệ thống cho quản trị viên, hỗ trợ tìm kiếm, lọc theo trạng thái và phân trang.'
+      operationId: adminListOrders
+      parameters:
+        -
+          name: search
+          in: query
+          description: 'Tìm theo tên, email hoặc số điện thoại khách hàng.'
+          required: false
+          schema:
+            type: string
+        -
+          name: status
+          in: query
+          description: 'Lọc theo trạng thái đơn hàng.'
+          required: false
+          schema:
+            type: string
+            enum:
+              - PENDING_PAYMENT
+              - CONFIRMED
+              - SHIPPING
+              - COMPLETED
+              - CANCELLED
+              - RETURNED
+        -
+          name: page
+          in: query
+          description: 'Trang hiện tại.'
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        -
+          name: per_page
+          in: query
+          description: 'Số đơn hàng mỗi trang.'
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            minimum: 1
+          example: 15
+      responses:
+        200:
+          description: 'Lấy danh sách đơn hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 12
+                            user_id:
+                              type: integer
+                              example: 5
+                            customer:
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 5
+                                name:
+                                  type: string
+                                  example: 'Nguyễn Văn A'
+                                  nullable: true
+                                email:
+                                  type: string
+                                  format: email
+                                  example: customer@example.com
+                                  nullable: true
+                                phone:
+                                  type: string
+                                  example: '0901234567'
+                                  nullable: true
+                              type: object
+                            status:
+                              type: string
+                              example: SHIPPING
+                              enum:
+                                - PENDING_PAYMENT
+                                - CONFIRMED
+                                - SHIPPING
+                                - COMPLETED
+                                - CANCELLED
+                                - RETURNED
+                            total_price:
+                              type: number
+                              format: float
+                              example: 398000
+                            discount_price:
+                              type: number
+                              format: float
+                              example: 50000
+                              nullable: true
+                            final_price:
+                              type: number
+                              format: float
+                              example: 378000
+                            payment_status:
+                              type: string
+                              example: PAID
+                              nullable: true
+                              enum:
+                                - UNPAID
+                                - PAID
+                                - REFUNDED
+                            payment_method:
+                              type: string
+                              example: VNPAY
+                              nullable: true
+                              enum:
+                                - COD
+                                - VNPAY
+                            created_at:
+                              type: string
+                              format: date-time
+                            item_count:
+                              type: integer
+                              example: 2
+                          type: object
+                      pagination:
+                        properties:
+                          current_page:
+                            type: integer
+                            example: 1
+                          per_page:
+                            type: integer
+                            example: 15
+                          total:
+                            type: integer
+                            example: 30
+                          last_page:
+                            type: integer
+                            example: 2
+                        type: object
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        422:
+          description: 'Tham số tìm kiếm, trạng thái hoặc phân trang không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  '/api/admin/orders/{order}':
+    get:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Chi tiết đơn hàng cho quản trị viên'
+      description: 'Xem toàn bộ thông tin một đơn hàng trong hệ thống dành cho quản trị viên.'
+      operationId: adminShowOrder
+      parameters:
+        -
+          name: order
+          in: path
+          description: 'ID đơn hàng.'
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Lấy thông tin đơn hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      id:
+                        type: integer
+                        example: 12
+                      user_id:
+                        type: integer
+                        example: 5
+                      customer:
+                        type: object
+                      status:
+                        type: string
+                        example: CONFIRMED
+                        enum:
+                          - PENDING_PAYMENT
+                          - CONFIRMED
+                          - SHIPPING
+                          - COMPLETED
+                          - CANCELLED
+                          - RETURNED
+                      total_price:
+                        type: number
+                        format: float
+                        example: 398000
+                      discount_price:
+                        type: number
+                        format: float
+                        example: 50000
+                        nullable: true
+                      ship_price:
+                        type: number
+                        format: float
+                        example: 30000
+                        nullable: true
+                      discount_ship_price:
+                        type: number
+                        format: float
+                        example: 0
+                      final_price:
+                        type: number
+                        format: float
+                        example: 378000
+                      ghn_order_code:
+                        type: string
+                        example: LJXX123456
+                        nullable: true
+                      shipping_address:
+                        properties:
+                          ward_code:
+                            type: string
+                            example: '1003544'
+                          ward_name:
+                            type: string
+                            example: 'Phường An Khánh'
+                          province_id:
+                            type: integer
+                            example: 202
+                          province_name:
+                            type: string
+                            example: 'Hồ Chí Minh'
+                          specific_address:
+                            type: string
+                            example: '12 Nguyễn Văn A'
+                          full_name:
+                            type: string
+                            example: 'Nguyễn Văn A'
+                          phone:
+                            type: string
+                            example: '0901234567'
+                        type: object
+                      payment:
+                        properties:
+                          id:
+                            type: integer
+                            example: 8
+                          method:
+                            type: string
+                            example: COD
+                            enum:
+                              - COD
+                              - VNPAY
+                          status:
+                            type: string
+                            example: UNPAID
+                            enum:
+                              - UNPAID
+                              - PAID
+                              - REFUNDED
+                        type: object
+                        nullable: true
+                      order_details:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 20
+                            product_variant_id:
+                              type: integer
+                              example: 7
+                            product_name:
+                              type: string
+                              example: 'Áo sơ mi'
+                              nullable: true
+                            variant_image:
+                              type: string
+                              example: products/ao-so-mi.jpg
+                              nullable: true
+                            quantity:
+                              type: integer
+                              example: 2
+                            unit_price:
+                              type: number
+                              format: float
+                              example: 199000
+                            unit_discount_price:
+                              type: number
+                              format: float
+                              example: 25000
+                              nullable: true
+                          type: object
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy đơn hàng'
+      security:
+        -
+          bearerAuth: []
+  /api/admin/orders/summary:
+    get:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Tổng kết doanh thu đơn hàng'
+      description: 'Lấy thống kê tổng doanh thu từ các đơn hàng đã hoàn thành, hỗ trợ lọc theo khoảng thời gian.'
+      operationId: adminOrderSummary
+      parameters:
+        -
+          name: from_date
+          in: query
+          description: 'Ngày bắt đầu (YYYY-MM-DD)'
+          required: false
+          schema:
+            type: string
+            format: date
+        -
+          name: to_date
+          in: query
+          description: 'Ngày kết thúc (YYYY-MM-DD)'
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        200:
+          description: 'Lấy thống kê thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      total_revenue:
+                        type: number
+                        format: float
+                        example: 50000000
+                      total_orders:
+                        type: integer
+                        example: 150
+                      average_order_value:
+                        type: number
+                        format: float
+                        example: 333333.33
+                      from_date:
+                        type: string
+                        format: date
+                        example: '2026-06-01'
+                      to_date:
+                        type: string
+                        format: date
+                        example: '2026-06-28'
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        422:
+          description: 'Ngày không đúng định dạng YYYY-MM-DD'
+      security:
+        -
+          bearerAuth: []
+  '/api/admin/customers/{customer}/orders':
+    get:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Lấy danh sách đơn hàng của khách hàng'
+      description: 'Lấy danh sách tất cả đơn hàng của một khách hàng cụ thể, hỗ trợ lọc theo trạng thái và phân trang.'
+      operationId: adminOrdersByCustomer
+      parameters:
+        -
+          name: customer
+          in: path
+          description: 'ID khách hàng.'
+          required: true
+          schema:
+            type: integer
+          example: 3
+        -
+          name: status
+          in: query
+          description: 'Lọc theo trạng thái đơn hàng'
+          required: false
+          schema:
+            type: string
+            enum:
+              - PENDING_PAYMENT
+              - CONFIRMED
+              - SHIPPING
+              - COMPLETED
+              - CANCELLED
+              - RETURNED
+        -
+          name: page
+          in: query
+          description: 'Số trang.'
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          example: 1
+        -
+          name: per_page
+          in: query
+          description: 'Số bản ghi trên trang.'
+          required: false
+          schema:
+            type: integer
+            default: 15
+            maximum: 100
+            minimum: 1
+          example: 15
+      responses:
+        200:
+          description: 'Lấy danh sách thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 12
+                            user_id:
+                              type: integer
+                              example: 5
+                            customer:
+                              type: object
+                            status:
+                              type: string
+                              example: COMPLETED
+                              enum:
+                                - PENDING_PAYMENT
+                                - CONFIRMED
+                                - SHIPPING
+                                - COMPLETED
+                                - CANCELLED
+                                - RETURNED
+                            total_price:
+                              type: number
+                              format: float
+                              example: 398000
+                            discount_price:
+                              type: number
+                              format: float
+                              example: 50000
+                              nullable: true
+                            final_price:
+                              type: number
+                              format: float
+                              example: 378000
+                            payment_status:
+                              type: string
+                              example: PAID
+                              nullable: true
+                              enum:
+                                - UNPAID
+                                - PAID
+                                - REFUNDED
+                            payment_method:
+                              type: string
+                              example: VNPAY
+                              nullable: true
+                              enum:
+                                - COD
+                                - VNPAY
+                            created_at:
+                              type: string
+                              format: date-time
+                            item_count:
+                              type: integer
+                              example: 2
+                          type: object
+                      pagination:
+                        properties:
+                          current_page:
+                            type: integer
+                          per_page:
+                            type: integer
+                          total:
+                            type: integer
+                          last_page:
+                            type: integer
+                        type: object
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy khách hàng'
+        422:
+          description: 'Trạng thái hoặc thông tin phân trang không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  '/api/order/{order}':
+    get:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Lấy chi tiết đơn hàng'
+      description: 'Trả về chi tiết một đơn hàng của người dùng đang đăng nhập. Người dùng chỉ xem được đơn hàng thuộc tài khoản của mình.'
+      operationId: getOrderDetail
+      parameters:
+        -
+          name: order
+          in: path
+          description: 'ID đơn hàng.'
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Lấy chi tiết đơn hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      user_id:
+                        type: integer
+                        example: 1
+                      total_price:
+                        type: number
+                        format: float
+                        example: 398000
+                      discount_price:
+                        type: number
+                        format: float
+                        example: 100000
+                      final_price:
+                        type: number
+                        format: float
+                        example: 298000
+                      status:
+                        type: string
+                        example: CONFIRMED
+                        enum:
+                          - PENDING_PAYMENT
+                          - CONFIRMED
+                          - SHIPPING
+                          - COMPLETED
+                          - CANCELLED
+                          - RETURNED
+                      ghn_order_code:
+                        type: string
+                        example: LJXX123456
+                        nullable: true
+                      ward_code:
+                        type: string
+                        example: '1003544'
+                      ward_name:
+                        type: string
+                        example: 'Phường An Khánh'
+                      province_id:
+                        type: integer
+                        example: 202
+                      province_name:
+                        type: string
+                        example: 'Hồ Chí Minh'
+                      specific_address:
+                        type: string
+                        example: '12 Nguyễn Văn A'
+                      full_name:
+                        type: string
+                        example: 'Nguyễn Văn A'
+                      phone:
+                        type: string
+                        example: '0901234567'
+                      order_details:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            product_variant_id:
+                              type: integer
+                              example: 1
+                            quantity:
+                              type: integer
+                              example: 2
+                            unit_price:
+                              type: number
+                              format: float
+                              example: 199000
+                            unit_discount_price:
+                              type: number
+                              format: float
+                              example: 50000
+                              nullable: true
+                            product_variant:
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 1
+                                image:
+                                  type: string
+                                  example: products/ao-so-mi.jpg
+                                  nullable: true
+                                product:
+                                  properties:
+                                    id:
+                                      type: integer
+                                      example: 1
+                                    name:
+                                      type: string
+                                      example: 'Áo sơ mi'
+                                  type: object
+                              type: object
+                          type: object
+                      payment:
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          method:
+                            type: string
+                            example: COD
+                            enum:
+                              - COD
+                              - VNPAY
+                          status:
+                            type: string
+                            example: UNPAID
+                            enum:
+                              - UNPAID
+                              - PAID
+                              - REFUNDED
+                        type: object
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        404:
+          description: 'Không tìm thấy đơn hàng hoặc đơn hàng không thuộc người dùng hiện tại'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 404
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'No query results for model.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+  '/api/order/{order}/cancel':
+    patch:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Hủy đơn hàng'
+      description: 'Hủy đơn hàng của người dùng đang đăng nhập. Chỉ đơn PENDING_PAYMENT hoặc CONFIRMED mới có thể hủy.'
+      operationId: cancelOrder
+      parameters:
+        -
+          name: order
+          in: path
+          description: 'ID đơn hàng cần hủy.'
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Hủy đơn hàng thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Đơn hàng đã được hủy thành công.'
+                  data:
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      user_id:
+                        type: integer
+                        example: 1
+                      total_price:
+                        type: number
+                        format: float
+                        example: 398000
+                      discount_price:
+                        type: number
+                        format: float
+                        example: 0
+                      ship_price:
+                        type: number
+                        format: float
+                        example: 49500
+                      discount_ship_price:
+                        type: number
+                        format: float
+                        example: 0
+                      final_price:
+                        type: number
+                        format: float
+                        example: 447500
+                      status:
+                        type: string
+                        example: CANCELLED
+                      ghn_order_code:
+                        type: string
+                        example: LX8E8H
+                        nullable: true
+                      ward_code:
+                        type: string
+                        example: '1003544'
+                      ward_name:
+                        type: string
+                        example: 'Phường An Khánh'
+                      province_id:
+                        type: integer
+                        example: 202
+                      province_name:
+                        type: string
+                        example: 'Hồ Chí Minh'
+                      specific_address:
+                        type: string
+                        example: '12 Nguyễn Văn A'
+                      full_name:
+                        type: string
+                        example: 'Nguyễn Văn A'
+                      phone:
+                        type: string
+                        example: '0901234567'
+                      payment:
+                        properties:
+                          method:
+                            type: string
+                            example: VNPAY
+                            enum:
+                              - COD
+                              - VNPAY
+                          status:
+                            type: string
+                            example: PAID
+                            enum:
+                              - UNPAID
+                              - PAID
+                              - REFUNDED
+                        type: object
+                      refund_request:
+                        description: 'Chỉ xuất hiện khi hủy đơn VNPAY đã thanh toán.'
+                        properties:
+                          id:
+                            type: integer
+                            example: 4
+                          reason:
+                            type: string
+                            example: 'Hoàn tiền do hủy đơn hàng'
+                          status:
+                            type: string
+                            example: pending
+                            enum:
+                              - pending
+                              - approved
+                              - rejected
+                          amount:
+                            type: number
+                            format: float
+                            example: 447500
+                        type: object
+                        nullable: true
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        404:
+          description: 'Không tìm thấy đơn hàng hoặc đơn hàng không thuộc người dùng hiện tại'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 404
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'No query results for model.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'Đơn hàng không thể hủy ở trạng thái hiện tại'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Order cannot be canceled at this stage.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+  '/api/order/{order}/{orderDetail}/review':
+    post:
+      tags:
+        - 'Đơn hàng'
+      summary: 'Đánh giá sản phẩm trong đơn hàng'
+      description: 'Tạo một đánh giá cho sản phẩm thuộc đơn hàng COMPLETED của người dùng. Mỗi order detail chỉ được đánh giá một lần.'
+      operationId: reviewOrderDetail
+      parameters:
+        -
+          name: order
+          in: path
+          description: 'ID đơn hàng.'
+          required: true
+          schema:
+            type: integer
+          example: 12
+        -
+          name: orderDetail
+          in: path
+          description: 'ID dòng sản phẩm trong đơn hàng.'
+          required: true
+          schema:
+            type: integer
+          example: 20
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - order
+                - orderDetail
+                - rating
+              properties:
+                order:
+                  description: 'Phải trùng với ID order trên URL.'
+                  type: integer
+                  example: 12
+                orderDetail:
+                  description: 'Phải trùng với ID orderDetail trên URL.'
+                  type: integer
+                  example: 20
+                rating:
+                  type: integer
+                  example: 5
+                  maximum: 5
+                  minimum: 1
+                comment:
+                  type: string
+                  example: 'Sản phẩm đẹp, đúng kích thước.'
+                  nullable: true
+                  maxLength: 1000
+                imagePaths:
+                  description: 'Tối đa 5 đường dẫn ảnh đã tải lên.'
+                  type: array
+                  items:
+                    type: string
+                    example: reviews/review-1.jpg
+                  nullable: true
+                  maxItems: 5
+              type: object
+      responses:
+        201:
+          description: 'Đánh giá sản phẩm thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 201
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Đánh giá sản phẩm thành công.'
+                  data:
+                    properties:
+                      id:
+                        type: integer
+                        example: 9
+                      user_id:
+                        type: integer
+                        example: 5
+                      product_id:
+                        type: integer
+                        example: 7
+                      order_detail_id:
+                        type: integer
+                        example: 20
+                      rating:
+                        type: integer
+                        example: 5
+                      comment:
+                        type: string
+                        example: 'Sản phẩm đẹp, đúng kích thước.'
+                        nullable: true
+                      images:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 2
+                            image_path:
+                              type: string
+                              example: reviews/review-1.jpg
+                          type: object
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        404:
+          description: 'Không tìm thấy đơn hàng hoặc order detail'
+        422:
+          description: 'Dữ liệu không hợp lệ, đơn chưa COMPLETED hoặc sản phẩm đã được đánh giá'
+      security:
+        -
+          bearerAuth: []
+  /api/ghn/webhook/order-status:
+    post:
+      tags:
+        - GHN
+      summary: 'Webhook cập nhật trạng thái đơn hàng từ GHN'
+      description: 'Xác thực webhook, lấy trạng thái chính thức từ API chi tiết GHN rồi cập nhật đơn. Các trạng thái picked/storing/transporting/sorting/delivering/delivery_fail được ánh xạ thành SHIPPING; delivered thành COMPLETED; nhóm trạng thái hoàn hàng thành RETURNED. Khi đơn COD thành COMPLETED, payment được chuyển sang PAID. Chuyển trạng thái không hợp lệ hoặc webhook lặp lại sẽ được bỏ qua.'
+      operationId: updateOrderStatusFromGhnWebhook
+      parameters:
+        -
+          name: X-GHN-Webhook-Token
+          in: header
+          description: 'Token webhook do hệ thống cung cấp cho GHN. Có thể gửi bằng header này, X-Webhook-Token, Authorization: Bearer token, hoặc field token trong body.'
+          required: false
+          schema:
+            type: string
+          example: webhook-secret-token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - order_code
+              properties:
+                order_code:
+                  type: string
+                  example: 5E3NK3RS
+                token:
+                  type: string
+                  example: webhook-secret-token
+                  nullable: true
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật trạng thái đơn hàng thành công hoặc webhook status không cần cập nhật'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      ghn_status:
+                        type: string
+                        example: picked
+                      old_status:
+                        type: string
+                        example: CONFIRMED
+                        enum:
+                          - PENDING_PAYMENT
+                          - CONFIRMED
+                          - SHIPPING
+                          - COMPLETED
+                          - CANCELLED
+                          - RETURNED
+                      new_status:
+                        type: string
+                        example: SHIPPING
+                        enum:
+                          - PENDING_PAYMENT
+                          - CONFIRMED
+                          - SHIPPING
+                          - COMPLETED
+                          - CANCELLED
+                          - RETURNED
+                      status_changed:
+                        type: boolean
+                        example: true
+                      order:
+                        properties:
+                          id:
+                            type: integer
+                            example: 1
+                          user_id:
+                            type: integer
+                            example: 1
+                          status:
+                            type: string
+                            example: SHIPPING
+                            enum:
+                              - PENDING_PAYMENT
+                              - CONFIRMED
+                              - SHIPPING
+                              - COMPLETED
+                              - CANCELLED
+                              - RETURNED
+                          ghn_order_code:
+                            type: string
+                            example: 5E3NK3RS
+                          total_price:
+                            type: number
+                            format: float
+                            example: 300000
+                          discount_price:
+                            type: number
+                            format: float
+                            example: 0
+                          ship_price:
+                            type: number
+                            format: float
+                            example: 30000
+                          discount_ship_price:
+                            type: number
+                            format: float
+                            example: 0
+                          final_price:
+                            type: number
+                            format: float
+                            example: 330000
+                        type: object
+                    type: object
+                type: object
+        404:
+          description: 'Không tìm thấy đơn hàng theo mã vận đơn GHN'
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    example: 'No query results for model.'
+                type: object
+        422:
+          description: 'Thiếu mã vận đơn GHN'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Missing GHN order code.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        401:
+          description: 'Token webhook không hợp lệ'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Invalid GHN webhook token.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        400:
+          description: 'GHN trả về dữ liệu hoặc trạng thái request không hợp lệ'
+        500:
+          description: 'Chưa cấu hình GHN token hoặc webhook token'
+        502:
+          description: 'Không thể kết nối tới GHN'
   /api/products:
     get:
       tags:
@@ -504,6 +3602,35 @@ paths:
           schema:
             type: boolean
           example: true
+        -
+          name: promotionId
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 1
+        -
+          name: attribute_value_ids
+          in: query
+          description: 'Lọc sản phẩm có cùng một biến thể chứa đầy đủ các ID giá trị thuộc tính. Hỗ trợ chuỗi phân cách bằng dấu phẩy, ví dụ ID màu Đỏ và size M.'
+          required: false
+          schema:
+            type: string
+          example: '1,4'
+        -
+          name: attr
+          in: query
+          description: 'Lọc theo tên thuộc tính và value/display_value. Ví dụ: attr[color]=red&attr[size]=M,L. Các thuộc tính phải cùng thuộc một biến thể.'
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+          example:
+            color: red
+            size: 'M,L'
       responses:
         200:
           description: 'Lấy danh sách sản phẩm thành công'
@@ -550,15 +3677,42 @@ paths:
                 variants:
                   type: array
                   items:
-                    type: object
-                  example:
-                    -
-                      sku: AO-THUN-DEN-M
-                      price: 199000
-                      stock: 10
+                    required:
+                      - sku
+                      - price
+                    properties:
+                      sku:
+                        type: string
+                        example: AO-THUN-DEN-M
+                      price:
+                        type: number
+                        format: float
+                        example: 199000
+                        minimum: 0
+                      discount_price:
+                        type: number
+                        format: float
+                        example: 169000
+                        nullable: true
+                        minimum: 0
+                      stock:
+                        type: integer
+                        example: 10
+                        default: 0
+                        minimum: 0
+                      image:
+                        description: 'Ảnh riêng của biến thể. Nếu không truyền, hệ thống sử dụng ảnh sản phẩm.'
+                        type: string
+                        example: 'https://cdn.example.com/products/ao-thun-den.jpg'
+                        nullable: true
                       attribute_value_ids:
-                        - 1
-                        - 2
+                        type: array
+                        items:
+                          type: integer
+                        example:
+                          - 1
+                          - 2
+                    type: object
               type: object
       responses:
         201:
@@ -638,16 +3792,42 @@ paths:
                 variants:
                   type: array
                   items:
-                    type: object
-                  example:
-                    -
-                      id: 1
-                      sku: AO-THUN-DEN-L
-                      price: 219000
-                      stock: 8
+                    properties:
+                      id:
+                        description: 'ID biến thể cần cập nhật. Bỏ qua để tạo biến thể mới.'
+                        type: integer
+                        example: 1
+                      sku:
+                        type: string
+                        example: AO-THUN-DEN-L
+                      price:
+                        type: number
+                        format: float
+                        example: 219000
+                        minimum: 0
+                      discount_price:
+                        type: number
+                        format: float
+                        example: 189000
+                        nullable: true
+                        minimum: 0
+                      stock:
+                        type: integer
+                        example: 8
+                        minimum: 0
+                      image:
+                        description: 'Ảnh riêng của biến thể. Truyền null hoặc chuỗi rỗng để dùng ảnh sản phẩm.'
+                        type: string
+                        example: 'https://cdn.example.com/products/ao-thun-den.jpg'
+                        nullable: true
                       attribute_value_ids:
-                        - 1
-                        - 3
+                        type: array
+                        items:
+                          type: integer
+                        example:
+                          - 1
+                          - 3
+                    type: object
               type: object
       responses:
         200:
@@ -661,7 +3841,1782 @@ paths:
       security:
         -
           bearerAuth: []
+    delete:
+      tags:
+        - 'Sản phẩm'
+      summary: 'Xóa mềm sản phẩm'
+      description: 'Đánh dấu sản phẩm đã xóa. Các biến thể và dữ liệu đơn hàng liên quan vẫn được giữ lại.'
+      operationId: deleteProduct
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Xóa mềm sản phẩm thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy sản phẩm'
+      security:
+        -
+          bearerAuth: []
+  '/api/admin/inventory/{productVariant}':
+    patch:
+      tags:
+        - 'Quản lý tồn kho'
+      summary: 'Cập nhật tồn kho biến thể sản phẩm'
+      operationId: 5ebba9d319c47669e65c08e1b527298f
+      parameters:
+        -
+          name: productVariant
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - stock
+              properties:
+                stock:
+                  type: integer
+                  example: 25
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật tồn kho thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  /api/admin/inventory/stock-in:
+    post:
+      tags:
+        - 'Quản lý tồn kho'
+      summary: 'Nhập kho cho biến thể sản phẩm'
+      operationId: 42b6c60feb0efc53ee78cd7b1dba4582
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - variant_id
+                - quantity
+              properties:
+                variant_id:
+                  type: integer
+                  example: 12
+                quantity:
+                  type: integer
+                  example: 10
+                note:
+                  type: string
+                  example: 'Nhập hàng từ nhà cung cấp'
+              type: object
+      responses:
+        200:
+          description: 'Nhập kho thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  /api/admin/inventory/stock-out:
+    post:
+      tags:
+        - 'Quản lý tồn kho'
+      summary: 'Xuất kho cho biến thể sản phẩm'
+      operationId: 69b90f16073f3329ac60d5da9024e46a
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - variant_id
+                - quantity
+              properties:
+                variant_id:
+                  type: integer
+                  example: 12
+                quantity:
+                  type: integer
+                  example: 3
+                note:
+                  type: string
+                  example: 'Xuất bán cho đơn hàng'
+              type: object
+      responses:
+        200:
+          description: 'Xuất kho thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        422:
+          description: 'Số lượng xuất vượt quá tồn kho'
+      security:
+        -
+          bearerAuth: []
+  /api/promotion:
+    get:
+      tags:
+        - 'Khuyến mãi'
+      summary: 'Danh sách khuyến mãi'
+      description: 'Lấy danh sách khuyến mãi có phân trang, tìm kiếm và lọc trạng thái. Kết quả bao gồm các sản phẩm thuộc từng khuyến mãi.'
+      operationId: listPromotions
+      parameters:
+        -
+          name: page
+          in: query
+          description: 'Trang hiện tại.'
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          example: 1
+        -
+          name: per_page
+          in: query
+          description: 'Số khuyến mãi trên mỗi trang, tối đa 100.'
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+            minimum: 1
+          example: 20
+        -
+          name: q
+          in: query
+          description: 'Tìm kiếm theo tên hoặc mô tả khuyến mãi.'
+          required: false
+          schema:
+            type: string
+            maxLength: 255
+          example: 'mùa hè'
+        -
+          name: is_active
+          in: query
+          description: 'Lọc theo trạng thái bật hoặc tắt của khuyến mãi.'
+          required: false
+          schema:
+            type: boolean
+          example: true
+        -
+          name: status
+          in: query
+          description: 'Lọc theo thời gian diễn ra khuyến mãi.'
+          required: false
+          schema:
+            type: string
+            enum:
+              - upcoming
+              - active
+              - expired
+          example: active
+      responses:
+        200:
+          description: 'Lấy danh sách khuyến mãi thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: 'Khuyến mãi mùa hè'
+                            description:
+                              type: string
+                              example: 'Giảm giá các sản phẩm mùa hè'
+                              nullable: true
+                            discount_amount:
+                              type: number
+                              format: float
+                              example: 20
+                            discount_type:
+                              type: string
+                              example: percentage
+                              enum:
+                                - percentage
+                                - fixed
+                            start_date:
+                              type: string
+                              format: date-time
+                              example: '2026-06-01T00:00:00.000000Z'
+                            end_date:
+                              type: string
+                              format: date-time
+                              example: '2026-06-30T23:59:59.000000Z'
+                            is_active:
+                              type: boolean
+                              example: true
+                            products:
+                              type: array
+                              items:
+                                properties:
+                                  id:
+                                    type: integer
+                                    example: 10
+                                  name:
+                                    type: string
+                                    example: 'Áo thun basic'
+                                  price:
+                                    type: number
+                                    format: float
+                                    example: 199000
+                                  discount_price:
+                                    type: number
+                                    format: float
+                                    example: 159200
+                                    nullable: true
+                                  image:
+                                    type: string
+                                    example: 'https://cdn.example.com/products/ao-thun.jpg'
+                                    nullable: true
+                                type: object
+                            created_at:
+                              type: string
+                              format: date-time
+                            updated_at:
+                              type: string
+                              format: date-time
+                          type: object
+                      pagination:
+                        properties:
+                          page:
+                            type: integer
+                            example: 1
+                          limit:
+                            type: integer
+                            example: 20
+                          totalItems:
+                            type: integer
+                            example: 25
+                          totalPages:
+                            type: integer
+                            example: 2
+                        type: object
+                    type: object
+                type: object
+        422:
+          description: 'Tham số lọc không hợp lệ'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The selected status is invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+    post:
+      tags:
+        - 'Khuyến mãi'
+      summary: 'Tạo khuyến mãi'
+      description: 'Tạo khuyến mãi và gán cho các sản phẩm. Một sản phẩm không được có các khuyến mãi đang bật bị trùng thời gian.'
+      operationId: createPromotion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromotionCreateRequest'
+      responses:
+        201:
+          description: 'Tạo khuyến mãi thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 201
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    $ref: '#/components/schemas/Promotion'
+                type: object
+        422:
+          description: 'Dữ liệu không hợp lệ, sản phẩm không tồn tại hoặc thời gian khuyến mãi bị trùng'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+  /api/promotion/first:
+    get:
+      tags:
+        - 'Khuyến mãi'
+      summary: 'Khuyến mãi đang diễn ra gần nhất'
+      description: 'Trả về khuyến mãi đang bật và còn hiệu lực có thời gian bắt đầu gần nhất. Data là null nếu hiện tại không có khuyến mãi phù hợp.'
+      operationId: getCurrentPromotion
+      responses:
+        200:
+          description: 'Lấy khuyến mãi hiện tại thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    oneOf:
+                      - $ref: '#/components/schemas/Promotion'
+                    nullable: true
+                type: object
+  '/api/promotion/{promotion}':
+    put:
+      tags:
+        - 'Khuyến mãi'
+      summary: 'Cập nhật khuyến mãi'
+      description: 'Cập nhật một hoặc nhiều trường của khuyến mãi. Nếu gửi product_ids, danh sách sản phẩm cũ sẽ được thay thế.'
+      operationId: updatePromotion
+      parameters:
+        -
+          name: promotion
+          in: path
+          description: 'ID khuyến mãi.'
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromotionUpdateRequest'
+      responses:
+        200:
+          description: 'Cập nhật khuyến mãi thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    $ref: '#/components/schemas/Promotion'
+                type: object
+        404:
+          description: 'Không tìm thấy khuyến mãi'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 404
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'No query results for model [App\Models\Promotion] 999'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'Dữ liệu không hợp lệ hoặc thời gian khuyến mãi bị trùng'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+    delete:
+      tags:
+        - 'Khuyến mãi'
+      summary: 'Tắt khuyến mãi'
+      description: 'Tắt khuyến mãi bằng cách đặt is_active thành false; dữ liệu khuyến mãi không bị xóa khỏi hệ thống.'
+      operationId: deactivatePromotion
+      parameters:
+        -
+          name: promotion
+          in: path
+          description: 'ID khuyến mãi.'
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: 'Tắt khuyến mãi thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: boolean
+                    example: true
+                type: object
+        404:
+          description: 'Không tìm thấy khuyến mãi'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 404
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'No query results for model [App\Models\Promotion] 999'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+  /api/upload:
+    post:
+      tags:
+        - Upload
+      summary: 'Tải ảnh sản phẩm lên Cloudinary'
+      description: 'Tải một ảnh sản phẩm lên Cloudinary và trả về image_url cùng public_id. Endpoint yêu cầu đăng nhập.'
+      operationId: uploadProductImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              required:
+                - image
+              properties:
+                image:
+                  description: 'File ảnh sản phẩm. Hỗ trợ jpg, jpeg, png, webp. Tối đa 2MB.'
+                  type: string
+                  format: binary
+              type: object
+      responses:
+        200:
+          description: 'Tải ảnh thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    properties:
+                      image_url:
+                        type: string
+                        example: 'https://res.cloudinary.com/demo/image/upload/v1710000000/clothes_shop/products/abc.jpg'
+                      public_id:
+                        type: string
+                        example: clothes_shop/products/abc
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'File ảnh không hợp lệ'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+  /api/profile:
+    get:
+      tags:
+        - 'Thông tin cá nhân'
+      summary: 'Lấy thông tin cá nhân'
+      description: 'Lấy thông tin cá nhân của người dùng đang đăng nhập.'
+      operationId: getCurrentUserProfile
+      responses:
+        200:
+          description: 'Lấy thông tin cá nhân thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: 'Nguyễn Văn A'
+                        nullable: true
+                      email:
+                        type: string
+                        example: user@example.com
+                        nullable: true
+                      phone:
+                        type: string
+                        example: '0901234567'
+                        nullable: true
+                      avatar:
+                        type: string
+                        example: users/avatar.jpg
+                        nullable: true
+                      role:
+                        type: string
+                        example: ROLE_CUSTOMER
+                      status:
+                        type: string
+                        example: ACTIVE
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+      security:
+        -
+          bearerAuth: []
+    put:
+      tags:
+        - 'Thông tin cá nhân'
+      summary: 'Cập nhật thông tin cá nhân'
+      description: 'Cập nhật thông tin cá nhân của người dùng đang đăng nhập. Endpoint này không cho phép đổi mật khẩu.'
+      operationId: updateCurrentUserProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                name:
+                  type: string
+                  example: 'Nguyễn Văn A'
+                  nullable: true
+                phone:
+                  type: string
+                  example: '0901234567'
+                  nullable: true
+                avatar:
+                  type: string
+                  example: users/avatar.jpg
+                  nullable: true
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật thông tin cá nhân thành công'
+        401:
+          description: 'Chưa xác thực'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+    delete:
+      tags:
+        - 'Thông tin cá nhân'
+      summary: 'Xóa tài khoản hiện tại'
+      description: 'Xóa tài khoản của người dùng đang đăng nhập.'
+      operationId: deleteCurrentUserProfile
+      responses:
+        200:
+          description: 'Xóa tài khoản thành công'
+        401:
+          description: 'Chưa xác thực'
+      security:
+        -
+          bearerAuth: []
+    patch:
+      tags:
+        - 'Thông tin cá nhân'
+      summary: 'Cập nhật một phần thông tin cá nhân'
+      description: 'Cập nhật một phần thông tin cá nhân của người dùng đang đăng nhập. Endpoint này không cho phép đổi mật khẩu.'
+      operationId: patchCurrentUserProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                name:
+                  type: string
+                  example: 'Nguyễn Văn A'
+                  nullable: true
+                phone:
+                  type: string
+                  example: '0901234567'
+                  nullable: true
+                avatar:
+                  type: string
+                  example: users/avatar.jpg
+                  nullable: true
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật thông tin cá nhân thành công'
+        401:
+          description: 'Chưa xác thực'
+        422:
+          description: 'Dữ liệu không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+  /api/vnpay/payment-url:
+    post:
+      tags:
+        - VNPAY
+      summary: 'Tạo URL thanh toán VNPAY'
+      description: 'Tạo URL thanh toán VNPAY cho một đơn hàng của người dùng đang đăng nhập. Frontend dùng payment_url để chuyển người dùng sang cổng thanh toán VNPAY.'
+      operationId: createVnpayPaymentUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - order_id
+              properties:
+                order_id:
+                  description: 'ID đơn hàng cần thanh toán.'
+                  type: integer
+                  example: 1
+                bank_code:
+                  description: 'Mã phương thức thanh toán. Không truyền để người dùng tự chọn trên VNPAY.'
+                  type: string
+                  example: VNBANK
+                  nullable: true
+                  enum:
+                    - VNPAYQR
+                    - VNBANK
+                    - INTCARD
+                locale:
+                  description: 'Ngôn ngữ giao diện VNPAY.'
+                  type: string
+                  example: vn
+                  nullable: true
+                  enum:
+                    - vn
+                    - en
+              type: object
+      responses:
+        200:
+          description: 'Tạo URL thanh toán thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      payment_url:
+                        type: string
+                        example: 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=29800000&vnp_Command=pay&vnp_CreateDate=20260623120000&vnp_CurrCode=VND&vnp_IpAddr=127.0.0.1&vnp_Locale=vn&vnp_OrderInfo=Thanh+toan+don+hang+1&vnp_OrderType=other&vnp_ReturnUrl=https%3A%2F%2Fdomain.vn%2Fvnpay-return&vnp_TmnCode=DEMOV210&vnp_TxnRef=120260623120000&vnp_Version=2.1.0&vnp_SecureHash=...'
+                      txn_ref:
+                        type: string
+                        example: '120260623120000'
+                      amount:
+                        type: number
+                        format: float
+                        example: 298000
+                      expire_at:
+                        type: string
+                        example: '20260623121500'
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        404:
+          description: 'Không tìm thấy đơn hàng hoặc đơn hàng không thuộc người dùng hiện tại'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 404
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'No query results for model.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'Dữ liệu không hợp lệ hoặc cấu hình VNPAY chưa đầy đủ'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+      security:
+        -
+          bearerAuth: []
+  /api/vnpay/return:
+    get:
+      tags:
+        - VNPAY
+      summary: 'Xử lý kết quả thanh toán VNPAY'
+      description: 'Endpoint nhận redirect từ VNPAY sau khi người dùng thanh toán. Hệ thống xác thực chữ ký, nếu giao dịch thành công thì cập nhật payment thành PAID và order thành CONFIRMED.'
+      operationId: handleVnpayReturn
+      parameters:
+        -
+          name: vnp_TxnRef
+          in: query
+          required: true
+          schema:
+            type: string
+          example: '120260623120000'
+        -
+          name: vnp_Amount
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 29800000
+        -
+          name: vnp_ResponseCode
+          in: query
+          required: true
+          schema:
+            type: string
+          example: '00'
+        -
+          name: vnp_TransactionStatus
+          in: query
+          required: true
+          schema:
+            type: string
+          example: '00'
+        -
+          name: vnp_SecureHash
+          in: query
+          required: true
+          schema:
+            type: string
+          example: secure_hash_from_vnpay
+      responses:
+        200:
+          description: 'Xử lý kết quả thanh toán thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      order_id:
+                        type: integer
+                        example: 1
+                      order_status:
+                        type: string
+                        example: CONFIRMED
+                      payment_status:
+                        type: string
+                        example: PAID
+                      transaction_id:
+                        type: string
+                        example: '120260623120000'
+                      response_code:
+                        type: string
+                        example: '00'
+                      transaction_status:
+                        type: string
+                        example: '00'
+                    type: object
+                type: object
+        404:
+          description: 'Không tìm thấy giao dịch thanh toán'
+        422:
+          description: 'Chữ ký không hợp lệ hoặc dữ liệu không khớp'
+  /api/voucher:
+    get:
+      tags:
+        - Voucher
+      summary: 'Danh sách voucher'
+      description: 'Lấy danh sách voucher dành cho quản trị viên, bao gồm cả voucher đã bị tắt.'
+      operationId: listVouchers
+      parameters:
+        -
+          name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          example: 1
+        -
+          name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+            minimum: 1
+          example: 20
+        -
+          name: q
+          in: query
+          description: 'Tìm theo mã hoặc mô tả.'
+          required: false
+          schema:
+            type: string
+          example: WELCOME
+        -
+          name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+          example: true
+        -
+          name: discount_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - ORDER
+              - SHIPPING
+        -
+          name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - valid
+              - expired
+      responses:
+        200:
+          description: 'Lấy danh sách voucher thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            code:
+                              type: string
+                              example: WELCOME10
+                            description:
+                              type: string
+                              nullable: true
+                            discount_amount:
+                              type: number
+                              format: float
+                              example: 10
+                            max_discount_amount:
+                              type: number
+                              format: float
+                              example: 50000
+                              nullable: true
+                            discount_type:
+                              type: string
+                              enum:
+                                - ORDER
+                                - SHIPPING
+                            is_active:
+                              type: boolean
+                              example: true
+                            usage_limit:
+                              type: integer
+                              example: 100
+                            expiry_date:
+                              type: string
+                              format: date
+                            created_at:
+                              type: string
+                              format: date-time
+                            updated_at:
+                              type: string
+                              format: date-time
+                          type: object
+                      pagination:
+                        properties:
+                          page:
+                            type: integer
+                            example: 1
+                          limit:
+                            type: integer
+                            example: 20
+                          totalItems:
+                            type: integer
+                            example: 25
+                          totalPages:
+                            type: integer
+                            example: 2
+                        type: object
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        422:
+          description: 'Tham số lọc không hợp lệ'
+      security:
+        -
+          bearerAuth: []
+    post:
+      tags:
+        - Voucher
+      summary: 'Tạo voucher'
+      description: 'Nếu code rỗng hoặc null, hệ thống tự sinh code 10 ký tự chữ và số không trùng.'
+      operationId: createVoucher
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - discount_amount
+                - discount_type
+                - usage_limit
+                - expiry_date
+              properties:
+                code:
+                  description: 'Không bắt buộc; tự sinh nếu bỏ trống.'
+                  type: string
+                  example: WELCOME10
+                  nullable: true
+                  maxLength: 50
+                description:
+                  type: string
+                  example: 'Giảm 10% cho đơn hàng'
+                  nullable: true
+                  maxLength: 255
+                discount_amount:
+                  description: 'Phần trăm giảm từ 0 đến 100.'
+                  type: number
+                  format: float
+                  example: 10
+                  maximum: 100
+                  exclusiveMinimum: true
+                  minimum: 0
+                max_discount_amount:
+                  type: number
+                  format: float
+                  example: 50000
+                  nullable: true
+                  minimum: 0
+                discount_type:
+                  type: string
+                  example: ORDER
+                  enum:
+                    - ORDER
+                    - SHIPPING
+                is_active:
+                  type: boolean
+                  example: true
+                  default: true
+                usage_limit:
+                  type: integer
+                  example: 100
+                  minimum: 1
+                expiry_date:
+                  type: string
+                  format: date
+                  example: '2026-12-31'
+              type: object
+      responses:
+        201:
+          description: 'Tạo voucher thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        422:
+          description: 'Dữ liệu không hợp lệ hoặc code đã tồn tại'
+      security:
+        -
+          bearerAuth: []
+  '/api/voucher/{voucher}':
+    get:
+      tags:
+        - Voucher
+      summary: 'Lấy chi tiết voucher theo mã'
+      description: 'Khách hàng chỉ xem được voucher còn hiệu lực theo code. Quản trị viên có thể xem voucher theo code hoặc ID.'
+      operationId: getVoucherByCode
+      parameters:
+        -
+          name: voucher
+          in: path
+          description: 'Code voucher; quản trị viên cũng có thể truyền ID.'
+          required: true
+          schema:
+            type: string
+          example: SALE100
+      responses:
+        200:
+          description: 'Lấy thông tin voucher thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      code:
+                        type: string
+                        example: SALE100
+                      description:
+                        type: string
+                        example: 'Giảm 10% cho đơn hàng'
+                        nullable: true
+                      discount_amount:
+                        type: number
+                        format: float
+                        example: 10
+                      max_discount_amount:
+                        type: number
+                        format: float
+                        example: 100000
+                        nullable: true
+                      discount_type:
+                        type: string
+                        example: ORDER
+                        enum:
+                          - ORDER
+                          - SHIPPING
+                      is_active:
+                        type: boolean
+                        example: true
+                      usage_limit:
+                        type: integer
+                        example: 100
+                      expiry_date:
+                        type: string
+                        format: date
+                        example: '2026-12-31'
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: '2026-06-26T13:54:06.000000Z'
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: '2026-06-26T13:54:06.000000Z'
+                    type: object
+                type: object
+        401:
+          description: 'Chưa xác thực'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 401
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        422:
+          description: 'Voucher không tồn tại, đã bị tắt hoặc đã hết hạn'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 422
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'The selected voucher is invalid.'
+                  data:
+                    type: object
+                    example: null
+                    nullable: true
+                type: object
+        404:
+          description: 'Quản trị viên không tìm thấy voucher'
+      security:
+        -
+          bearerAuth: []
+    put:
+      tags:
+        - Voucher
+      summary: 'Cập nhật voucher'
+      description: 'Cập nhật voucher theo code hoặc ID. Chỉ cần gửi các trường muốn thay đổi.'
+      operationId: updateVoucher
+      parameters:
+        -
+          name: voucher
+          in: path
+          description: 'Code hoặc ID voucher.'
+          required: true
+          schema:
+            type: string
+          example: WELCOME10
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                code:
+                  type: string
+                  example: SUMMER2026
+                  maxLength: 50
+                description:
+                  type: string
+                  example: 'Giảm 15% cho đơn hàng'
+                  nullable: true
+                  maxLength: 255
+                discount_amount:
+                  type: number
+                  format: float
+                  example: 15
+                  maximum: 100
+                  exclusiveMinimum: true
+                  minimum: 0
+                max_discount_amount:
+                  type: number
+                  format: float
+                  example: 75000
+                  nullable: true
+                  minimum: 0
+                discount_type:
+                  type: string
+                  example: ORDER
+                  enum:
+                    - ORDER
+                    - SHIPPING
+                is_active:
+                  type: boolean
+                  example: true
+                usage_limit:
+                  type: integer
+                  example: 50
+                  minimum: 0
+                expiry_date:
+                  type: string
+                  format: date
+                  example: '2027-01-31'
+              type: object
+      responses:
+        200:
+          description: 'Cập nhật voucher thành công'
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy voucher'
+        422:
+          description: 'Dữ liệu không hợp lệ hoặc code đã tồn tại'
+      security:
+        -
+          bearerAuth: []
+    delete:
+      tags:
+        - Voucher
+      summary: 'Tắt voucher'
+      description: 'Không xóa bản ghi; hệ thống cập nhật is_active thành false để voucher không thể tiếp tục sử dụng.'
+      operationId: deleteVoucher
+      parameters:
+        -
+          name: voucher
+          in: path
+          description: 'Code hoặc ID voucher.'
+          required: true
+          schema:
+            type: string
+          example: WELCOME10
+      responses:
+        200:
+          description: 'Tắt voucher thành công'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: null
+                    nullable: true
+                  data:
+                    type: boolean
+                    example: true
+                type: object
+        401:
+          description: 'Chưa xác thực'
+        403:
+          description: 'Chỉ quản trị viên được phép'
+        404:
+          description: 'Không tìm thấy voucher'
+      security:
+        -
+          bearerAuth: []
 components:
+  schemas:
+    AttributeType:
+      required:
+        - id
+        - name
+        - display_name
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: color
+        display_name:
+          type: string
+          example: 'Màu sắc'
+        attribute_values:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeValue'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      type: object
+    AttributeValue:
+      required:
+        - id
+        - attribute_type_id
+        - value
+        - display_value
+      properties:
+        id:
+          type: integer
+          example: 1
+        attribute_type_id:
+          type: integer
+          example: 1
+        value:
+          type: string
+          example: black
+        display_value:
+          type: string
+          example: Đen
+        meta_data:
+          type: object
+          example:
+            hex: '#000000'
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      type: object
+    CategorySummary:
+      required:
+        - id
+        - name
+        - image
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: 'Áo thun'
+        image:
+          type: string
+          format: uri
+          example: 'https://cdn.example.com/categories/ao-thun.jpg'
+        parent_id:
+          type: integer
+          example: null
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      type: object
+    CategoryDetail:
+      required:
+        - id
+        - name
+        - image
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: 'Áo thun'
+        image:
+          type: string
+          format: uri
+          example: 'https://cdn.example.com/categories/ao-thun.jpg'
+        parent_id:
+          type: integer
+          example: null
+          nullable: true
+        parent:
+          oneOf:
+            - $ref: '#/components/schemas/CategorySummary'
+          nullable: true
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategorySummary'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      type: object
+    PromotionProductSummary:
+      properties:
+        id:
+          type: integer
+          example: 10
+        name:
+          type: string
+          example: 'Áo thun basic'
+        price:
+          type: number
+          format: float
+          example: 199000
+        discount_price:
+          type: number
+          format: float
+          example: 159200
+          nullable: true
+        image:
+          type: string
+          example: 'https://cdn.example.com/products/ao-thun.jpg'
+          nullable: true
+      type: object
+    Promotion:
+      required:
+        - id
+        - name
+        - discount_amount
+        - discount_type
+        - start_date
+        - end_date
+        - is_active
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: 'Khuyến mãi mùa hè'
+        description:
+          type: string
+          example: 'Giảm giá các sản phẩm mùa hè'
+          nullable: true
+        discount_amount:
+          type: number
+          format: float
+          example: 20
+          minimum: 0
+        discount_type:
+          type: string
+          example: percentage
+          enum:
+            - percentage
+            - fixed
+        start_date:
+          type: string
+          format: date-time
+          example: '2026-06-01T00:00:00.000000Z'
+        end_date:
+          type: string
+          format: date-time
+          example: '2026-06-30T23:59:59.000000Z'
+        is_active:
+          type: boolean
+          example: true
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/PromotionProductSummary'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      type: object
+    PromotionCreateRequest:
+      required:
+        - name
+        - discount_amount
+        - discount_type
+        - start_date
+        - end_date
+        - product_ids
+      properties:
+        name:
+          type: string
+          example: 'Khuyến mãi mùa hè'
+          maxLength: 255
+        description:
+          type: string
+          example: 'Giảm giá các sản phẩm mùa hè'
+          nullable: true
+        discount_amount:
+          description: 'Phần trăm hoặc số tiền giảm, tùy discount_type.'
+          type: number
+          format: float
+          example: 20
+          exclusiveMinimum: true
+          minimum: 0
+        discount_type:
+          type: string
+          example: percentage
+          enum:
+            - percentage
+            - fixed
+        start_date:
+          type: string
+          format: date-time
+          example: '2026-07-01T00:00:00+07:00'
+        end_date:
+          description: 'Phải sau start_date.'
+          type: string
+          format: date-time
+          example: '2026-07-31T23:59:59+07:00'
+        is_active:
+          type: boolean
+          example: true
+          default: true
+        product_ids:
+          type: array
+          items:
+            type: integer
+          example:
+            - 1
+            - 2
+          minItems: 1
+          uniqueItems: true
+      type: object
+    PromotionUpdateRequest:
+      properties:
+        name:
+          type: string
+          example: 'Khuyến mãi mùa hè cập nhật'
+          maxLength: 255
+        description:
+          type: string
+          example: 'Nội dung khuyến mãi đã cập nhật'
+          nullable: true
+        discount_amount:
+          description: 'Phần trăm hoặc số tiền giảm, tùy discount_type.'
+          type: number
+          format: float
+          example: 25
+          exclusiveMinimum: true
+          minimum: 0
+        discount_type:
+          type: string
+          example: percentage
+          enum:
+            - percentage
+            - fixed
+        start_date:
+          type: string
+          format: date-time
+          example: '2026-07-01T00:00:00+07:00'
+        end_date:
+          description: 'Phải sau start_date hiện tại hoặc start_date gửi kèm.'
+          type: string
+          format: date-time
+          example: '2026-08-15T23:59:59+07:00'
+        is_active:
+          type: boolean
+          example: true
+        product_ids:
+          type: array
+          items:
+            type: integer
+          example:
+            - 1
+            - 2
+            - 3
+          minItems: 1
+          uniqueItems: true
+      type: object
   securitySchemes:
     bearerAuth:
       type: http
@@ -669,11 +5624,33 @@ components:
       bearerFormat: JWT
       scheme: bearer
 tags:
+  - name: 'Địa chỉ'
+    description: 'Địa chỉ'
   - name: 'Thuộc tính'
     description: 'Thuộc tính'
   - name: 'Xác thực'
     description: 'Xác thực'
+  - name: 'Giỏ hàng'
+    description: 'Giỏ hàng'
   - name: 'Danh mục'
     description: 'Danh mục'
+  - name: 'Khách hàng'
+    description: 'Khách hàng'
+  - name: GHN
+    description: GHN
+  - name: 'Đơn hàng'
+    description: 'Đơn hàng'
   - name: 'Sản phẩm'
     description: 'Sản phẩm'
+  - name: 'Quản lý tồn kho'
+    description: 'Quản lý tồn kho'
+  - name: 'Khuyến mãi'
+    description: 'Khuyến mãi'
+  - name: Upload
+    description: Upload
+  - name: 'Thông tin cá nhân'
+    description: 'Thông tin cá nhân'
+  - name: VNPAY
+    description: VNPAY
+  - name: Voucher
+    description: Voucher

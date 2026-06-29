@@ -14,10 +14,10 @@ class UpdateAttributeTypeRequest extends FormRequest
     public function rules()
     {
         $id = $this->route('id');
+
         return [
-            'name' => 'required|string|max:255|unique:attribute_types,name,' . $id,
-            'values' => 'sometimes|array',
-            'values.*' => 'required|string|max:255',
+            'name' => 'sometimes|required|string|max:255|unique:attribute_types,name,'.$id,
+            'display_name' => 'sometimes|required|string|max:255',
         ];
     }
 }

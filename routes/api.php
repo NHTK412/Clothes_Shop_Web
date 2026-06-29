@@ -1,9 +1,20 @@
 <?php
 
+use App\Http\Controllers\AddressController;
 use App\Http\Controllers\Api\AttributeTypeController;
+use App\Http\Controllers\Api\AttributeValueController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\GhnController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\PromotionController;
+use App\Http\Controllers\UploadController;
+use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\VnpayController;
+use App\Http\Controllers\VoucherController;
 use Illuminate\Support\Facades\Route;
 
 // Route::post('/login', [AuthController::class, 'authenticateApi'])->name('login.authenticate');
@@ -19,24 +30,160 @@ Route::prefix('auth')->group(function () {
     })->name('password.reset');
 
     Route::post('/reset-password', [AuthController::class, 'resetPasswordApi'])->name('password.update.api');
+
+    Route::post('/oauth2', [AuthController::class, 'oauth2Login'])->name('oauth2.login');
 });
 
-Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-Route::get('/products/{id}', [ProductController::class, 'show'])->name('products.show');
-// Admin product management
-Route::post('/products', [ProductController::class, 'store'])->name('products.store');
-Route::put('/products/{id}', [ProductController::class, 'update'])->name('products.update');
-// Category CRUD
-Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
-Route::get('/categories/{id}', [CategoryController::class, 'show'])->name('categories.show');
-Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
-Route::put('/categories/{id}', [CategoryController::class, 'update'])->name('categories.update');
-Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+/*
+|--------------------------------------------------------------------------
+| Public routes
+|--------------------------------------------------------------------------
+*/
+Route::controller(ProductController::class)->group(function () {
+    Route::get('/products', 'index')->name('products.index');
+    Route::get('/products/{id}', 'show')->name('products.show');
+});
 
-// Attribute types and values (CRUD)
-Route::get('/attributes', [AttributeTypeController::class, 'index'])->name('attributes.index');
-Route::get('/attributes/{id}', [AttributeTypeController::class, 'show'])->name('attributes.show');
-Route::post('/attributes', [AttributeTypeController::class, 'store'])->name('attributes.store');
-Route::put('/attributes/{id}', [AttributeTypeController::class, 'update'])->name('attributes.update');
-Route::delete('/attributes/{id}', [AttributeTypeController::class, 'destroy'])->name('attributes.destroy');
-Route::get('/attributes/{idOrName}/values', [AttributeTypeController::class, 'values'])->name('attributes.values');
+Route::controller(CategoryController::class)->prefix('categories')->name('categories.')->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::get('/{id}', 'show')->name('show');
+});
+
+Route::controller(AttributeTypeController::class)->prefix('attributes')->name('attributes.')->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::get('/{id}', 'show')->name('show');
+});
+
+Route::controller(AttributeValueController::class)->prefix('attributes/{attributeType}/values')->name('attributes.values.')->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::get('/{attributeValue}', 'show')->name('show');
+});
+
+Route::controller(GhnController::class)->prefix('ghn')->name('ghn.')->group(function () {
+    Route::get('/provinces', 'provinces')->name('provinces');
+    Route::get('/districts', 'districts')->name('districts');
+    Route::get('/wards', 'wards')->name('wards');
+});
+
+Route::post('/ghn/webhook/order-status', [OrderController::class, 'update'])->name('ghn.webhook.order-status');
+Route::get('/vnpay/return', [VnpayController::class, 'return'])->name('vnpay.return');
+Route::get('/promotion/first', [PromotionController::class, 'first'])->name('promotion.first');
+
+/*
+|--------------------------------------------------------------------------
+| Authenticated customer routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth:api')->group(function () {
+    Route::controller(UserProfileController::class)->prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', 'show')->name('show');
+        Route::put('/', 'update')->name('update');
+        Route::patch('/', 'patch')->name('patch');
+        Route::delete('/', 'destroy')->name('destroy');
+    });
+
+    Route::controller(AddressController::class)->prefix('addresses')->name('addresses.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::put('/{address}', 'update')->name('update');
+        Route::delete('/{address}', 'destroy')->name('destroy');
+        Route::put('/{address}/default', 'setDefault')->name('default');
+    });
+
+    Route::controller(ProductController::class)->group(function () {
+        Route::post('/products/{productId}/favorites', 'addFavorite')->name('products.favorites.add');
+        Route::delete('/products/{productId}/favorites', 'removeFavorite')->name('products.favorites.remove');
+        Route::get('/users/{userId}/favorites', 'getUserFavorites')->name('users.favorites.index');
+    });
+
+    Route::controller(GhnController::class)->prefix('ghn')->name('ghn.')->group(function () {
+        Route::get('/shipping-fee', 'shippingFee')->name('shipping-fee');
+        Route::get('/detail', 'detail')->name('detail');
+    });
+
+    Route::controller(CartController::class)->prefix('cart/items')->name('cart.items.')->group(function () {
+        Route::get('/', 'getItems')->name('index');
+        Route::get('/count', 'getCountItem')->name('count');
+        Route::post('/', 'addItem')->name('add');
+        Route::put('/{cartItem}', 'updateItem')->name('update');
+    });
+
+    Route::controller(OrderController::class)->prefix('order')->name('order.')->group(function () {
+        Route::post('/', 'store')->name('store');
+        Route::get('/', 'index')->name('index');
+        Route::get('/{order}', 'show')->name('show');
+        Route::patch('/{order}/cancel', 'cancel')->name('cancel');
+        Route::post('/{order}/{orderDetail}/review', 'review')->name('review');
+    });
+
+    Route::get('/voucher/{voucher}', [VoucherController::class, 'show'])->name('voucher.show');
+    Route::post('/vnpay/payment-url', [VnpayController::class, 'createPaymentUrl'])->name('vnpay.payment-url');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Administrator routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth:api', 'admin'])->group(function () {
+    Route::controller(ProductController::class)->group(function () {
+        Route::post('/products', 'store')->name('products.store');
+        Route::put('/products/{id}', 'update')->name('products.update');
+        Route::delete('/products/{id}', 'destroy')->name('products.destroy');
+    });
+
+    Route::controller(CategoryController::class)->prefix('categories')->name('categories.')->group(function () {
+        Route::post('/', 'store')->name('store');
+        Route::put('/{id}', 'update')->name('update');
+        Route::delete('/{id}', 'destroy')->name('destroy');
+    });
+
+    Route::controller(AttributeTypeController::class)->prefix('attributes')->name('attributes.')->group(function () {
+        Route::post('/', 'store')->name('store');
+        Route::put('/{id}', 'update')->name('update');
+        Route::delete('/{id}', 'destroy')->name('destroy');
+    });
+
+    Route::controller(AttributeValueController::class)->prefix('attributes/{attributeType}/values')->name('attributes.values.')->group(function () {
+        Route::post('/', 'store')->name('store');
+        Route::put('/{attributeValue}', 'update')->name('update');
+        Route::delete('/{attributeValue}', 'destroy')->name('destroy');
+    });
+
+    Route::controller(CustomerController::class)->prefix('customers')->name('customers.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/{customer}', 'show')->name('show');
+        Route::patch('/{customer}', 'update')->name('update');
+        Route::delete('/{customer}', 'destroy')->name('destroy');
+    });
+
+    Route::controller(OrderController::class)->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/orders', 'adminIndex')->name('orders.index');
+        Route::get('/orders/summary', 'adminOrderSummary')->name('orders.summary');
+        Route::get('/orders/{order}', 'adminShow')->name('orders.show');
+        Route::get('/customers/{customer}/orders', 'adminOrdersByCustomer')->name('customers.orders.index');
+    });
+
+    Route::controller(ProductController::class)->prefix('admin/inventory')->name('admin.inventory.')->group(function () {
+        Route::get('/', 'adminInventoryIndex')->name('index');
+        Route::patch('/{productVariant}', 'adminInventoryUpdate')->name('update');
+        Route::post('/stock-in', 'adminInventoryStockIn')->name('stock-in');
+        Route::post('/stock-out', 'adminInventoryStockOut')->name('stock-out');
+    });
+
+    Route::controller(VoucherController::class)->prefix('voucher')->name('voucher.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::put('/{voucher}', 'update')->name('update');
+        Route::delete('/{voucher}', 'destroy')->name('destroy');
+    });
+
+    Route::controller(PromotionController::class)->prefix('promotion')->name('promotion.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::put('/{promotion}', 'update')->name('update');
+        Route::delete('/{promotion}', 'destroy')->name('destroy');
+    });
+
+    Route::post('/upload', [UploadController::class, 'uploadProductImage'])->name('upload.product-image');
+});

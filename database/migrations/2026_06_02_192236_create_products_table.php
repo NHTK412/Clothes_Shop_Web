@@ -17,8 +17,9 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->decimal('price', 10, 2);
             $table->decimal('discount_price', 10, 2)->nullable();
-            $table->string('image')->nullable();
+            $table->string('image')->nullable()->default('https://down-vn.img.susercontent.com/file/1234b2a2d4ccbcdc4357c818cf58a1f7');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('category_product', function (Blueprint $table) {
@@ -39,7 +40,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('products');
         Schema::dropIfExists('category_product');
+        Schema::dropIfExists('products');
     }
 };

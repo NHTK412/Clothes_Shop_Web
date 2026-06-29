@@ -1,0 +1,626 @@
+<?php
+
+namespace App\Http\Services;
+
+use App\Enums\OrderStatus;
+use App\Models\Address;
+use App\Models\Cart;
+use App\Models\Order;
+use App\Models\RefundRequest;
+use App\Models\User;
+use App\Models\Voucher;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
+
+class OrderService
+{
+    public function createOrder(
+        User $user,
+        int $addressId,
+        string $paymentMethod = 'COD',
+        ?string $giftCode = null,
+        ?float $expectedProductTotal = null
+    ): Order {
+        return DB::transaction(function () use ($user, $addressId, $paymentMethod, $giftCode, $expectedProductTotal) {
+            $address = Address::where('user_id', $user->id)->findOrFail($addressId);
+
+            $cart = Cart::with('items.productVariant.product')
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (! $cart || $cart->items->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'cart' => 'Cart is empty.',
+                ]);
+            }
+
+            $totalPrice = 0;
+            $discountPrice = 0;
+            $orderDetails = [];
+            $shippingItems = [];
+
+            foreach ($cart->items->sortBy('product_variant_id') as $item) {
+                $variant = $item->productVariant()->lockForUpdate()->first();
+
+                if (! $variant) {
+                    throw ValidationException::withMessages([
+                        'cart' => 'Product variant does not exist.',
+                    ]);
+                }
+
+                if (! $variant->product) {
+                    throw ValidationException::withMessages([
+                        'cart' => "Product for variant {$variant->id} is no longer available.",
+                    ]);
+                }
+
+                if ($variant->stock < $item->quantity) {
+                    throw ValidationException::withMessages([
+                        'cart' => "Not enough stock for product variant {$variant->id}.",
+                    ]);
+                }
+
+                $unitPrice = (float) $variant->price;
+                $unitDiscount = (float) ($variant->discount_price ?? 0);
+                $unitDiscount = min($unitDiscount, $unitPrice);
+                $unitFinalPrice = $unitPrice - $unitDiscount;
+
+                $totalPrice += $unitFinalPrice * $item->quantity;
+
+                $orderDetails[] = [
+                    'product_variant_id' => $item->product_variant_id,
+                    'quantity' => $item->quantity,
+                    'unit_price' => $unitPrice,
+                    'unit_discount_price' => $unitDiscount,
+                ];
+
+                $shippingItems[] = [
+                    'name' => $variant->product?->name ?? 'San pham quan ao',
+                    'code' => $variant->sku ?? (string) $item->product_variant_id,
+                    'quantity' => $item->quantity,
+                ];
+
+                $variant->stock -= $item->quantity;
+                $variant->save();
+            }
+
+            if (
+                $expectedProductTotal !== null
+                && abs($totalPrice - $expectedProductTotal) >= 0.01
+            ) {
+                throw ValidationException::withMessages([
+                    'expected_product_total' => 'Product prices have changed. Please refresh the cart and confirm again.',
+                ]);
+            }
+
+            $orderStatus = $paymentMethod === 'COD'
+                ? OrderStatus::CONFIRMED->value
+                : OrderStatus::PENDING_PAYMENT->value;
+            $shipPrice = $this->calculateShippingFee($address, $shippingItems);
+            $discountShipPrice = 0;
+            $voucher = null;
+
+            // Áp dụng voucher
+            if ($giftCode) {
+                $voucher = Voucher::where('code', $giftCode)
+                    ->where('is_active', true)
+                    ->where('expiry_date', '>=', now())
+                    ->first();
+
+                if (! $voucher) {
+                    throw ValidationException::withMessages([
+                        'gift_code' => 'Voucher is invalid or expired.',
+                    ]);
+                }
+
+                $voucherBaseAmount = $voucher->discount_type === 'SHIPPING'
+                    ? $shipPrice
+                    : $totalPrice;
+                $voucherDiscount = $voucherBaseAmount * ((float) $voucher->discount_amount / 100);
+
+                if ($voucher->max_discount_amount !== null) {
+                    $voucherDiscount = min($voucherDiscount, (float) $voucher->max_discount_amount);
+                }
+
+                if ($voucher->discount_type === 'SHIPPING') {
+                    $discountShipPrice = min($voucherDiscount, $shipPrice);
+                } else {
+                    $discountPrice = min($voucherDiscount, $totalPrice);
+                }
+
+                $voucher->usage_limit -= 1;
+                if ($voucher->usage_limit <= 0) {
+                    $voucher->is_active = false;
+                }
+                $voucher->save();
+            }
+
+            $finalPrice = $totalPrice + $shipPrice - $discountPrice - $discountShipPrice;
+
+            $order = Order::create([
+                'user_id' => $user->id,
+                'total_price' => $totalPrice,
+                'discount_price' => $discountPrice,
+                'final_price' => $finalPrice,
+                'ship_price' => $shipPrice,
+                'discount_ship_price' => $discountShipPrice,
+                'status' => $orderStatus,
+                'ward_code' => $address->ward_code,
+                'ward_name' => $address->ward_name,
+                'province_id' => $address->province_id,
+                'province_name' => $address->province_name,
+                'specific_address' => $address->specific_address,
+                'full_name' => $address->full_name,
+                'phone' => $address->phone,
+                'voucher_id' => $voucher?->id,
+                'voucher_code' => $voucher?->code,
+                'voucher_discount_amount' => $voucher?->discount_amount,
+                'voucher_max_discount_amount' => $voucher?->max_discount_amount,
+                'voucher_type' => $voucher?->discount_type,
+            ]);
+
+            $order->orderDetails()->createMany($orderDetails);
+
+            $order->payment()->create([
+                'method' => $paymentMethod,
+                'status' => 'UNPAID',
+            ]);
+
+            $cart->items()->delete();
+
+            // Tạo đơn hàng ghn
+            if (! config('services.ghn.shop_id')) {
+                throw ValidationException::withMessages([
+                    'ghn' => 'GHN shop id is not configured.',
+                ]);
+            }
+            try {
+                $token = config('services.ghn.token');
+
+                if (! $token) {
+                    throw new \RuntimeException('GHN token is not configured.');
+                }
+
+                $payload = [
+                    'payment_type_id' => 1,
+                    'required_note' => 'KHONGCHOXEMHANG',
+                    'to_name' => $address->full_name,
+                    'to_phone' => $address->phone,
+                    'is_new_to_address' => true,
+                    'to_address' => $address->specific_address,
+                    'to_ward_code' => $address->ward_code,
+                    'to_province_name' => $address->province_name,
+                    'cod_amount' => $paymentMethod === 'COD' ? $finalPrice : 0,
+                    'content' => "Giao hàng cho đơn hàng #{$order->id}",
+                    'service_type_id' => 2,
+                    'length' => 25,
+                    'width' => 20,
+                    'height' => 3,
+                    'weight' => 300,
+                ];
+
+                $response = Http::baseUrl(config('services.ghn.base_url'))
+                    ->withHeaders(['Token' => $token])
+                    ->acceptJson()
+                    ->withOptions([
+                        'verify' => config('services.ghn.verify_ssl'),
+                    ])
+                    ->timeout(15)
+                    ->post('/shiip/public-api/v2/shipping-order/create', $payload);
+
+                $body = $response->json();
+                if (! $response->successful() || ! isset($body['data']['order_code'])) {
+                    throw new \RuntimeException('Failed to create order with GHN: '.($body['message'] ?? 'Unknown error'));
+                }
+
+                $orderCode = $body['data']['order_code'];
+                $order->ghn_order_code = $orderCode;
+                $order->save();
+
+            } catch (\Exception $e) {
+                throw ValidationException::withMessages([
+                    'ghn' => 'Failed to create order with GHN: '.$e->getMessage(),
+                ]);
+            }
+
+            return $order->load([
+                'orderDetails.productVariant.product' => fn ($query) => $query->withTrashed(),
+                'payment',
+            ]);
+        });
+    }
+
+    private function calculateShippingFee(Address $address, array $items): float
+    {
+        if (! config('services.ghn.shop_id')) {
+            throw ValidationException::withMessages([
+                'ghn' => 'GHN shop id is not configured.',
+            ]);
+        }
+
+        $token = config('services.ghn.token');
+
+        if (! $token) {
+            throw ValidationException::withMessages([
+                'ghn' => 'GHN token is not configured.',
+            ]);
+        }
+
+        $districtId = $this->resolveGhnDistrictId($address);
+
+        $payload = [
+            'service_type_id' => (int) config('services.ghn.default_service_type_id'),
+            'is_new_to_address' => true,
+            'to_ward_id_v2' => (int) $address->ward_code,
+            'to_district_id' => $districtId,
+            'weight' => (int) config('services.ghn.default_weight'),
+            'length' => (int) config('services.ghn.default_length'),
+            'width' => (int) config('services.ghn.default_width'),
+            'height' => (int) config('services.ghn.default_height'),
+            'items' => $items,
+        ];
+
+        $response = Http::baseUrl(config('services.ghn.base_url'))
+            ->withHeaders([
+                'Token' => $token,
+                'ShopId' => config('services.ghn.shop_id'),
+            ])
+            ->acceptJson()
+            ->withOptions([
+                'verify' => config('services.ghn.verify_ssl'),
+            ])
+            ->timeout(15)
+            ->post('/shiip/public-api/v2/shipping-order/fee', $payload);
+
+        $body = $response->json();
+
+        if (! $response->successful() || ($body['code'] ?? null) !== 200 || ! isset($body['data']['total'])) {
+            throw ValidationException::withMessages([
+                'ghn' => 'Failed to calculate shipping fee with GHN: '.($body['message'] ?? 'Unknown error'),
+            ]);
+        }
+
+        return (float) $body['data']['total'];
+    }
+
+    private function resolveGhnDistrictId(Address $address): int
+    {
+        $token = config('services.ghn.token');
+
+        $response = Http::baseUrl(config('services.ghn.base_url'))
+            ->withHeaders(['Token' => $token])
+            ->acceptJson()
+            ->withOptions([
+                'verify' => config('services.ghn.verify_ssl'),
+            ])
+            ->timeout(15)
+            ->get('/shiip/public-api/v3/master-data/ward/all-by-province-id', [
+                'province_id' => (int) $address->province_id,
+            ]);
+
+        $body = $response->json();
+
+        if (! $response->successful() || ($body['code'] ?? null) !== 200) {
+            throw ValidationException::withMessages([
+                'ghn' => 'Failed to resolve GHN district id: '.($body['message'] ?? 'Unknown error'),
+            ]);
+        }
+
+        $ward = collect($body['data'] ?? [])->first(function ($ward) use ($address) {
+            return (string) ($ward['_id'] ?? '') === (string) $address->ward_code;
+        });
+
+        if (! $ward || ! isset($ward['parent_id'])) {
+            throw ValidationException::withMessages([
+                'ghn' => 'Cannot resolve GHN district id from address ward.',
+            ]);
+        }
+
+        return (int) $ward['parent_id'];
+    }
+
+    public function getOrdersByUser(User $user, int $perPage = 10, int $page = 1, ?string $status = null)
+    {
+        $query = $user->orders()->with([
+            'orderDetails.productVariant.product' => fn ($query) => $query->withTrashed(),
+            'payment',
+        ]);
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        return $query->paginate($perPage, ['*'], 'page', $page);
+    }
+
+    public function getOrderById(User $user, int $orderId)
+    {
+        return $user->orders()
+            ->with([
+                'orderDetails.productVariant.product' => fn ($query) => $query->withTrashed(),
+                'payment',
+                'orderDetails.review',
+            ])
+            ->findOrFail($orderId);
+    }
+
+    public function cancelOrder(User $user, int $orderId): Order
+    {
+        return DB::transaction(function () use ($user, $orderId) {
+            $order = $user->orders()
+                ->whereKey($orderId)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $order->load(['orderDetails.productVariant', 'payment']);
+
+            $currentStatus = OrderStatus::tryFrom($order->status);
+
+            if (! $currentStatus?->canBeCancelled()) {
+                throw ValidationException::withMessages([
+                    'order' => 'Order cannot be canceled at this stage.',
+                ]);
+            }
+
+            if ($order->ghn_order_code) {
+                $this->cancelGhnOrder($order->ghn_order_code);
+            }
+
+            foreach ($order->orderDetails as $detail) {
+                $variant = $detail->productVariant()->lockForUpdate()->first();
+                if ($variant) {
+                    $variant->stock += $detail->quantity;
+                    $variant->save();
+                }
+            }
+
+            $order->status = OrderStatus::CANCELLED->value;
+
+            if (
+                $currentStatus === OrderStatus::CONFIRMED
+                && $order->payment?->method === 'VNPAY'
+                && $order->payment->status === 'PAID'
+            ) {
+
+                RefundRequest::firstOrCreate(
+                    ['order_id' => $order->id],
+                    [
+                        'amount' => $order->final_price,
+                        'status' => 'pending',
+                        'reason' => 'Hoàn tiền do hủy đơn hàng',
+                        'user_id' => $user->id,
+                    ]
+                );
+            }
+            $order->save();
+
+            return $order->load(['payment', 'refundRequest']);
+        });
+    }
+
+    private function cancelGhnOrder(string $orderCode): void
+    {
+        if (! config('services.ghn.shop_id')) {
+            throw ValidationException::withMessages([
+                'ghn' => 'GHN shop id is not configured.',
+            ]);
+        }
+
+        $token = config('services.ghn.token');
+
+        if (! $token) {
+            throw ValidationException::withMessages([
+                'ghn' => 'GHN token is not configured.',
+            ]);
+        }
+
+        try {
+            $response = Http::baseUrl(config('services.ghn.base_url'))
+                ->withHeaders([
+                    'Token' => $token,
+                    'ShopId' => config('services.ghn.shop_id'),
+                ])
+                ->acceptJson()
+                ->withOptions([
+                    'verify' => config('services.ghn.verify_ssl'),
+                ])
+                ->timeout(15)
+                ->post('/shiip/public-api/v2/switch-status/cancel', [
+                    'order_codes' => [$orderCode],
+                ]);
+        } catch (\Exception $e) {
+            throw ValidationException::withMessages([
+                'ghn' => 'Failed to cancel order with GHN: '.$e->getMessage(),
+            ]);
+        }
+
+        $body = $response->json();
+        $cancelResult = collect($body['data'] ?? [])->firstWhere('order_code', $orderCode);
+
+        if (
+            ! $response->successful()
+            || ($body['code'] ?? null) !== 200
+            || ! ($cancelResult['result'] ?? false)
+        ) {
+            throw ValidationException::withMessages([
+                'ghn' => 'Failed to cancel order with GHN: '.($cancelResult['message'] ?? $body['message'] ?? 'Unknown error'),
+            ]);
+        }
+    }
+
+    public function reviewOrderDetail(User $user, int $orderId, int $orderDetailId, int $rating, ?string $comment = null, array $imagePaths = [])
+    {
+        return DB::transaction(function () use ($user, $orderId, $orderDetailId, $rating, $comment, $imagePaths) {
+            $order = $user->orders()->with('orderDetails')->findOrFail($orderId);
+
+            if ($order->status !== OrderStatus::COMPLETED->value) {
+                throw ValidationException::withMessages([
+                    'order' => 'You can only review delivered orders.',
+                ]);
+            }
+
+            $orderDetail = $order->orderDetails()->findOrFail($orderDetailId);
+
+            if ($orderDetail->review) {
+                throw ValidationException::withMessages([
+                    'review' => 'You have already reviewed this order detail.',
+                ]);
+            }
+
+            $review = $orderDetail->review()->create([
+                'user_id' => $user->id,
+                'product_id' => $orderDetail->product_variant_id,
+                'rating' => $rating,
+                'comment' => $comment,
+                'order_detail_id' => $orderDetail->id,
+            ]);
+
+            foreach ($imagePaths as $path) {
+                $review->images()->create([
+                    'image_path' => $path,
+                ]);
+            }
+
+            return $review->load('images');
+        });
+    }
+
+    public function syncOrders(): int
+    {
+        $thresholdTime = now()->subMinutes(15);
+        $cancelledCount = 0;
+
+        Order::query()
+            ->where('status', OrderStatus::PENDING_PAYMENT->value)
+            ->whereHas('payment', function ($query) {
+                $query->where('method', 'VNPAY')->where('status', 'UNPAID');
+            })
+            ->where('created_at', '<=', $thresholdTime)
+            ->select('id')
+            ->chunkById(100, function ($orders) use ($thresholdTime, &$cancelledCount) {
+                foreach ($orders as $candidate) {
+                    $cancelled = DB::transaction(function () use ($candidate, $thresholdTime) {
+                        $order = Order::query()
+                            ->whereKey($candidate->id)
+                            ->where('status', OrderStatus::PENDING_PAYMENT->value)
+                            ->where('created_at', '<=', $thresholdTime)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (! $order) {
+                            return false;
+                        }
+
+                        if ($order->ghn_order_code) {
+                            $this->cancelGhnOrder($order->ghn_order_code);
+                        }
+
+                        $details = $order->orderDetails()
+                            ->orderBy('product_variant_id')
+                            ->get();
+
+                        foreach ($details as $detail) {
+                            $variant = $detail->productVariant()
+                                ->lockForUpdate()
+                                ->first();
+
+                            if ($variant) {
+                                $variant->increment('stock', $detail->quantity);
+                            }
+                        }
+
+                        $order->update([
+                            'status' => OrderStatus::CANCELLED->value,
+                        ]);
+
+                        return true;
+                    });
+
+                    if ($cancelled) {
+                        $cancelledCount++;
+                    }
+                }
+            });
+
+        return $cancelledCount;
+    }
+
+    public function updateStatusFromGhn(string $orderCode, ?string $ghnStatus): array
+    {
+        return DB::transaction(function () use ($orderCode, $ghnStatus) {
+            $order = Order::query()
+                ->where('ghn_order_code', $orderCode)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $order->load('payment');
+
+            $oldStatus = $order->status;
+            $targetStatus = $this->mapGhnStatus($ghnStatus);
+
+            if ($this->canApplyGhnStatus($oldStatus, $targetStatus)) {
+                $order->update(['status' => $targetStatus->value]);
+            }
+
+            if (
+                $targetStatus === OrderStatus::COMPLETED
+                && $order->status === OrderStatus::COMPLETED->value
+                && $order->payment?->method === 'COD'
+                && $order->payment->status !== 'PAID'
+            ) {
+                $order->payment->update(['status' => 'PAID']);
+            }
+
+            return [
+                'ghn_status' => $ghnStatus,
+                'old_status' => $oldStatus,
+                'new_status' => $order->status,
+                'status_changed' => $oldStatus !== $order->status,
+                'order' => $order->fresh(['payment'])->toArray(),
+            ];
+        });
+    }
+
+    private function mapGhnStatus(?string $ghnStatus): ?OrderStatus
+    {
+        return match ($ghnStatus) {
+            'picked' => OrderStatus::SHIPPING,
+            'storing' => OrderStatus::SHIPPING,
+            'transporting' => OrderStatus::SHIPPING,
+            'sorting' => OrderStatus::SHIPPING,
+            'delivering' => OrderStatus::SHIPPING,
+            'money_collect_picking' => OrderStatus::SHIPPING,
+            'money_collect_delivering' => OrderStatus::SHIPPING,
+            'delivery_fail' => OrderStatus::SHIPPING,
+            'delivered' => OrderStatus::COMPLETED,
+            'waiting_to_return' => OrderStatus::RETURNED,
+            'return' => OrderStatus::RETURNED,
+            'return_transporting' => OrderStatus::RETURNED,
+            'return_sorting' => OrderStatus::RETURNED,
+            'returning' => OrderStatus::RETURNED,
+            'return_fail' => OrderStatus::RETURNED,
+            'returned' => OrderStatus::RETURNED,
+            default => null,
+        };
+    }
+
+    private function canApplyGhnStatus(string $currentStatus, ?OrderStatus $targetStatus): bool
+    {
+        if ($targetStatus === null || $currentStatus === $targetStatus->value) {
+            return false;
+        }
+
+        return match ($targetStatus) {
+            OrderStatus::SHIPPING => $currentStatus === OrderStatus::CONFIRMED->value,
+            OrderStatus::COMPLETED => in_array($currentStatus, [
+                OrderStatus::CONFIRMED->value,
+                OrderStatus::SHIPPING->value,
+            ], true),
+            OrderStatus::RETURNED => in_array($currentStatus, [
+                OrderStatus::CONFIRMED->value,
+                OrderStatus::SHIPPING->value,
+                OrderStatus::COMPLETED->value,
+            ], true),
+            default => false,
+        };
+    }
+}

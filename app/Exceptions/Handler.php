@@ -2,6 +2,7 @@
 
 namespace App\Exceptions;
 
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,7 +27,9 @@ class Handler extends ExceptionHandler
         // For API requests return standardized JSON error format
         if ($request->expectsJson() || $request->is('api/*')) {
             $status = 500;
-            if ($exception instanceof HttpExceptionInterface) {
+            if ($exception instanceof AuthenticationException) {
+                $status = 401;
+            } elseif ($exception instanceof HttpExceptionInterface) {
                 $status = $exception->getStatusCode();
             }
 
