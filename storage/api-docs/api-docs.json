@@ -257,7 +257,12 @@
                     "422": {
                         "description": "Dữ liệu không hợp lệ"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/attributes/{id}": {
@@ -344,7 +349,12 @@
                     "422": {
                         "description": "Dữ liệu không hợp lệ"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             },
             "delete": {
                 "tags": [
@@ -370,7 +380,12 @@
                     "404": {
                         "description": "Không tìm thấy loại thuộc tính"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/attributes/{idOrName}/values": {
@@ -1257,14 +1272,18 @@
                     "Danh mục"
                 ],
                 "summary": "Danh sách danh mục",
-                "operationId": "3f5817a34833d0a1f4af4548dd3aeaba",
+                "description": "Lấy danh sách danh mục kèm các danh mục con. Truyền per_page=0 để lấy toàn bộ.",
+                "operationId": "listCategories",
                 "parameters": [
                     {
                         "name": "per_page",
                         "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "integer"
+                            "type": "integer",
+                            "default": 20,
+                            "maximum": 100,
+                            "minimum": 0
                         },
                         "example": 20
                     },
@@ -1273,14 +1292,74 @@
                         "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "integer"
+                            "type": "integer",
+                            "default": 1,
+                            "minimum": 1
                         },
                         "example": 1
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Lấy danh sách danh mục thành công"
+                        "description": "Lấy danh sách danh mục thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "items": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/CategoryDetail"
+                                                    }
+                                                },
+                                                "pagination": {
+                                                    "properties": {
+                                                        "page": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "limit": {
+                                                            "type": "integer",
+                                                            "example": 20
+                                                        },
+                                                        "totalItems": {
+                                                            "type": "integer",
+                                                            "example": 15
+                                                        },
+                                                        "totalPages": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        }
+                                                    },
+                                                    "type": "object",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Dữ liệu phân trang không hợp lệ"
                     }
                 }
             },
@@ -1289,7 +1368,7 @@
                     "Danh mục"
                 ],
                 "summary": "Tạo danh mục",
-                "operationId": "71fcad552bb0eaba9fb191fd8d8dcab0",
+                "operationId": "createCategory",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -1307,6 +1386,13 @@
                                         "type": "integer",
                                         "example": null,
                                         "nullable": true
+                                    },
+                                    "image": {
+                                        "description": "URL ảnh danh mục. Nếu không gửi hoặc gửi null/rỗng, database sử dụng ảnh mặc định.",
+                                        "type": "string",
+                                        "format": "uri",
+                                        "example": "https://cdn.example.com/categories/ao-thun.jpg",
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -1316,7 +1402,45 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Tạo danh mục thành công"
+                        "description": "Tạo danh mục thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 201
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "items": {
+                                                    "$ref": "#/components/schemas/CategorySummary"
+                                                },
+                                                "pagination": {
+                                                    "type": "object",
+                                                    "example": null,
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Chưa xác thực"
                     },
                     "403": {
                         "description": "Chỉ admin được phép thao tác"
@@ -1338,7 +1462,7 @@
                     "Danh mục"
                 ],
                 "summary": "Chi tiết danh mục",
-                "operationId": "c68e76d323c008827a9e47398b1583de",
+                "operationId": "getCategory",
                 "parameters": [
                     {
                         "name": "id",
@@ -1352,7 +1476,42 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Lấy thông tin danh mục thành công"
+                        "description": "Lấy thông tin danh mục thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "items": {
+                                                    "$ref": "#/components/schemas/CategoryDetail"
+                                                },
+                                                "pagination": {
+                                                    "type": "object",
+                                                    "example": null,
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "404": {
                         "description": "Không tìm thấy danh mục"
@@ -1364,7 +1523,7 @@
                     "Danh mục"
                 ],
                 "summary": "Cập nhật danh mục",
-                "operationId": "0e686b2748211cc688333ed705dc111f",
+                "operationId": "updateCategory",
                 "parameters": [
                     {
                         "name": "id",
@@ -1390,6 +1549,13 @@
                                         "type": "integer",
                                         "example": null,
                                         "nullable": true
+                                    },
+                                    "image": {
+                                        "description": "URL ảnh mới. Nếu không gửi hoặc gửi null/rỗng, ảnh hiện tại được giữ nguyên.",
+                                        "type": "string",
+                                        "format": "uri",
+                                        "example": "https://cdn.example.com/categories/ao-so-mi.jpg",
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -1399,7 +1565,45 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Cập nhật danh mục thành công"
+                        "description": "Cập nhật danh mục thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "items": {
+                                                    "$ref": "#/components/schemas/CategoryDetail"
+                                                },
+                                                "pagination": {
+                                                    "type": "object",
+                                                    "example": null,
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Chưa xác thực"
                     },
                     "403": {
                         "description": "Chỉ admin được phép thao tác"
@@ -1422,7 +1626,7 @@
                     "Danh mục"
                 ],
                 "summary": "Xóa danh mục",
-                "operationId": "4c12e22a7f8c617bd83bfa1fdc05428d",
+                "operationId": "deleteCategory",
                 "parameters": [
                     {
                         "name": "id",
@@ -1436,7 +1640,37 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Xóa danh mục thành công"
+                        "description": "Xóa danh mục thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Chưa xác thực"
                     },
                     "403": {
                         "description": "Chỉ admin được phép thao tác"
@@ -4302,7 +4536,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             },
             "post": {
                 "tags": [
@@ -4379,7 +4618,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/promotion/first": {
@@ -4544,7 +4788,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             },
             "delete": {
                 "tags": [
@@ -4624,7 +4873,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/upload": {
@@ -5916,6 +6170,92 @@
     },
     "components": {
         "schemas": {
+            "CategorySummary": {
+                "required": [
+                    "id",
+                    "name",
+                    "image"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Áo thun"
+                    },
+                    "image": {
+                        "type": "string",
+                        "format": "uri",
+                        "example": "https://cdn.example.com/categories/ao-thun.jpg"
+                    },
+                    "parent_id": {
+                        "type": "integer",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "CategoryDetail": {
+                "required": [
+                    "id",
+                    "name",
+                    "image"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Áo thun"
+                    },
+                    "image": {
+                        "type": "string",
+                        "format": "uri",
+                        "example": "https://cdn.example.com/categories/ao-thun.jpg"
+                    },
+                    "parent_id": {
+                        "type": "integer",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "parent": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/CategorySummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "children": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CategorySummary"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
             "PromotionProductSummary": {
                 "properties": {
                     "id": {
