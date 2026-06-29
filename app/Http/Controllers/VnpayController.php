@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\OrderStatus;
 use App\Http\Services\OrderService;
 use App\Http\Services\VnpayService;
 use Illuminate\Http\Request;
@@ -109,7 +110,7 @@ class VnpayController extends Controller
         $order = $this->orderService->getOrderById($request->user(), $validated['order_id']);
 
         // Chỉ cho phép tạo URL thanh toán nếu đơn hàng đang chờ thanh toán.
-        if ($order->status !== 'pending') {
+        if ($order->status !== OrderStatus::PENDING_PAYMENT->value) {
             return response()->json([
                 'status' => 422,
                 'success' => false,
@@ -137,7 +138,7 @@ class VnpayController extends Controller
         path: '/api/vnpay/return',
         operationId: 'handleVnpayReturn',
         summary: 'Xử lý kết quả thanh toán VNPAY',
-        description: 'Endpoint nhận redirect từ VNPAY sau khi người dùng thanh toán. Hệ thống xác thực chữ ký, nếu giao dịch thành công thì cập nhật payment thành PAID và order thành processing.',
+        description: 'Endpoint nhận redirect từ VNPAY sau khi người dùng thanh toán. Hệ thống xác thực chữ ký, nếu giao dịch thành công thì cập nhật payment thành PAID và order thành CONFIRMED.',
         tags: ['VNPAY'],
         parameters: [
             new OA\Parameter(name: 'vnp_TxnRef', in: 'query', required: true, schema: new OA\Schema(type: 'string'), example: '120260623120000'),
@@ -159,7 +160,7 @@ class VnpayController extends Controller
                             property: 'data',
                             properties: [
                                 new OA\Property(property: 'order_id', type: 'integer', example: 1),
-                                new OA\Property(property: 'order_status', type: 'string', example: 'processing'),
+                                new OA\Property(property: 'order_status', type: 'string', example: 'CONFIRMED'),
                                 new OA\Property(property: 'payment_status', type: 'string', example: 'PAID'),
                                 new OA\Property(property: 'transaction_id', type: 'string', example: '120260623120000'),
                                 new OA\Property(property: 'response_code', type: 'string', example: '00'),

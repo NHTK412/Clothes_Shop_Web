@@ -2,8 +2,10 @@
 
 namespace App\Http\Services;
 
+use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\RefundRequest;
 use Illuminate\Validation\ValidationException;
 
 class VnpayService
@@ -24,6 +26,12 @@ class VnpayService
         if ((float) $order->final_price <= 0) {
             throw ValidationException::withMessages([
                 'order' => 'Order payment amount must be greater than 0.',
+            ]);
+        }
+
+        if ($order->status !== OrderStatus::PENDING_PAYMENT->value) {
+            throw ValidationException::withMessages([
+                'order' => 'Order is not waiting for payment.',
             ]);
         }
 
@@ -53,17 +61,14 @@ class VnpayService
             'vnp_Locale' => $locale ?: config('services.vnpay.locale', 'vn'),
             'vnp_OrderInfo' => "Thanh toan don hang {$order->id}",
             'vnp_OrderType' => config('services.vnpay.order_type', 'other'),
-            // 'vnp_ReturnUrl' => $returnUrl,
             'vnp_ExpireDate' => $now->copy()->addMinutes((int) config('services.vnpay.expire_minutes', 15))->format('YmdHis'),
             'vnp_TxnRef' => $txnRef,
-            // 'vnp_IpnUrl' => 'http://localhost:5173/return',
-            'vnp_ReturnUrl' => 'http://localhost:5173/return', // FE redirect
-            // 'vnp_IpnUrl' => 'https://your-ngrok-url.ngrok-free.app/api/vnpay/ipn', // BE webhook
+            'vnp_ReturnUrl' => $returnUrl,
         ];
 
-        // if ($bankCode) {
-        //     $params['vnp_BankCode'] = $bankCode;
-        // }
+        if ($bankCode) {
+            $params['vnp_BankCode'] = $bankCode;
+        }
 
         ksort($params);
 
@@ -148,10 +153,22 @@ class VnpayService
                 'payment_details' => $paymentDetails,
             ]);
 
-            $order->update([
-                'status' => 'processing',
-            ]);
-        } else {
+            if ($order->status === OrderStatus::PENDING_PAYMENT->value) {
+                $order->update([
+                    'status' => OrderStatus::CONFIRMED->value,
+                ]);
+            } elseif ($order->status === OrderStatus::CANCELLED->value) {
+                RefundRequest::firstOrCreate(
+                    ['order_id' => $order->id],
+                    [
+                        'user_id' => $order->user_id,
+                        'reason' => 'VNPAY payment completed after order cancellation',
+                        'status' => 'pending',
+                        'amount' => $order->final_price,
+                    ]
+                );
+            }
+        } elseif ($payment->status !== 'PAID') {
             $payment->update([
                 'status' => 'UNPAID',
                 'payment_details' => $paymentDetails,

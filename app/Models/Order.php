@@ -2,10 +2,20 @@
 
 namespace App\Models;
 
+use App\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
+    public const STATUSES = [
+        OrderStatus::PENDING_PAYMENT->value,
+        OrderStatus::CONFIRMED->value,
+        OrderStatus::SHIPPING->value,
+        OrderStatus::COMPLETED->value,
+        OrderStatus::CANCELLED->value,
+        OrderStatus::RETURNED->value,
+    ];
+
     protected $fillable = [
         'user_id',
         'total_price',

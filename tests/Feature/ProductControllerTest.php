@@ -239,6 +239,47 @@ class ProductControllerTest extends TestCase
             ->assertJsonPath('data.items.0.id', $matchingProduct->id);
     }
 
+    public function test_products_are_filtered_and_sorted_by_final_variant_price(): void
+    {
+        $discountedProduct = Product::create(['name' => 'Discounted', 'price' => 200000]);
+        ProductVariant::create([
+            'product_id' => $discountedProduct->id,
+            'sku' => 'DISCOUNTED',
+            'price' => 200000,
+            'discount_price' => 80000,
+            'stock' => 10,
+        ]);
+
+        $regularProduct = Product::create(['name' => 'Regular', 'price' => 150000]);
+        ProductVariant::create([
+            'product_id' => $regularProduct->id,
+            'sku' => 'REGULAR',
+            'price' => 150000,
+            'discount_price' => null,
+            'stock' => 10,
+        ]);
+
+        $expensiveProduct = Product::create(['name' => 'Expensive', 'price' => 300000]);
+        ProductVariant::create([
+            'product_id' => $expensiveProduct->id,
+            'sku' => 'EXPENSIVE',
+            'price' => 300000,
+            'discount_price' => 100000,
+            'stock' => 10,
+        ]);
+
+        $this->getJson('/api/products?per_page=0&min_price=130000&max_price=160000')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.items')
+            ->assertJsonPath('data.items.0.id', $regularProduct->id);
+
+        $this->getJson('/api/products?per_page=0&sort=price')
+            ->assertOk()
+            ->assertJsonPath('data.items.0.id', $discountedProduct->id)
+            ->assertJsonPath('data.items.1.id', $regularProduct->id)
+            ->assertJsonPath('data.items.2.id', $expensiveProduct->id);
+    }
+
     public function test_soft_deleted_product_is_hidden_but_its_variant_is_preserved(): void
     {
         $createResponse = $this->postJson('/api/products', [

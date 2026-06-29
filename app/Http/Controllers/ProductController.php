@@ -66,6 +66,8 @@ class ProductController extends Controller
         $q = $request->query('q'); // search query
         $minPrice = $request->query('min_price');
         $maxPrice = $request->query('max_price');
+        $hasMinPrice = $minPrice !== null && $minPrice !== '';
+        $hasMaxPrice = $maxPrice !== null && $maxPrice !== '';
         $inStock = $request->boolean('in_stock', false);
         $attrs = $request->query('attr', []); // e.g. attr[color]=blue&attr[size]=M
         $attrs = is_array($attrs) ? $attrs : [];
@@ -108,13 +110,19 @@ class ProductController extends Controller
         }
 
         // Filter by variant price, stock and attribute values
-        if ($minPrice || $maxPrice || $inStock || ! empty($attrs) || ! empty($attributeValueIds)) {
-            $query->whereHas('variants', function ($v) use ($minPrice, $maxPrice, $inStock, $attrs, $attributeValueIds) {
-                if ($minPrice !== null && $minPrice !== '') {
-                    $v->where('price', '>=', (float) $minPrice);
+        if ($hasMinPrice || $hasMaxPrice || $inStock || ! empty($attrs) || ! empty($attributeValueIds)) {
+            $query->whereHas('variants', function ($v) use ($minPrice, $maxPrice, $hasMinPrice, $hasMaxPrice, $inStock, $attrs, $attributeValueIds) {
+                if ($hasMinPrice) {
+                    $v->whereRaw(
+                        '(price - COALESCE(discount_price, 0)) >= CAST(? AS DECIMAL(12, 2))',
+                        [$minPrice]
+                    );
                 }
-                if ($maxPrice !== null && $maxPrice !== '') {
-                    $v->where('price', '<=', (float) $maxPrice);
+                if ($hasMaxPrice) {
+                    $v->whereRaw(
+                        '(price - COALESCE(discount_price, 0)) <= CAST(? AS DECIMAL(12, 2))',
+                        [$maxPrice]
+                    );
                 }
                 if ($inStock) {
                     $v->where('stock', '>', 0);
@@ -152,11 +160,15 @@ class ProductController extends Controller
             }
             // protect against invalid columns by allowing only certain fields
             $allowed = ['name', 'created_at', 'updated_at', 'price'];
-            // support ordering by variant price (uses withMin)
+            // Sort by the lowest final variant price (price - discount).
             if ($sort === 'price') {
-                $query->withMin('variants', 'price');
                 if (in_array($sort, $allowed, true)) {
-                    $query->orderBy('variants_min_price', $direction);
+                    $query->orderBy(
+                        ProductVariant::query()
+                            ->selectRaw('MIN(price - COALESCE(discount_price, 0))')
+                            ->whereColumn('product_id', 'products.id'),
+                        $direction
+                    );
                 }
             }
             if (in_array($sort, $allowed, true)) {

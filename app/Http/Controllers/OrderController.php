@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\OrderStatus;
 use App\Http\Services\OrderService;
 use App\Models\Order;
 use App\Models\User;
@@ -24,7 +25,7 @@ class OrderController extends Controller
         path: '/api/order',
         operationId: 'createOrder',
         summary: 'Tạo đơn hàng từ giỏ hàng',
-        description: 'Tạo đơn hàng từ giỏ hàng hiện tại của người dùng. Phần coupon/gift code chưa được áp dụng. Giá sản phẩm được tính theo công thức: giá gốc - giá giảm giá.',
+        description: 'Tạo đơn từ giỏ hàng, kiểm tra lại tồn kho và giá, áp dụng voucher rồi tạo vận đơn GHN. COD được tạo ở trạng thái CONFIRMED với payment UNPAID; VNPAY được tạo ở trạng thái PENDING_PAYMENT với payment UNPAID.',
         security: [['bearerAuth' => []]],
         tags: ['Đơn hàng'],
         requestBody: new OA\RequestBody(
@@ -33,8 +34,8 @@ class OrderController extends Controller
                 required: ['address_id'],
                 properties: [
                     new OA\Property(property: 'address_id', type: 'integer', example: 1),
-                    new OA\Property(property: 'gift_code', type: 'string', nullable: true, example: null),
-                    new OA\Property(property: 'payment_method', type: 'string', enum: ['COD', 'VNPAY'], example: 'COD'),
+                    new OA\Property(property: 'gift_code', description: 'Mã voucher đang hoạt động và còn hạn.', type: 'string', nullable: true, example: 'WELCOME10'),
+                    new OA\Property(property: 'payment_method', description: 'Mặc định là COD.', type: 'string', default: 'COD', enum: ['COD', 'VNPAY'], example: 'COD'),
                     new OA\Property(
                         property: 'expected_product_total',
                         description: 'Tổng tiền sản phẩm FE đang hiển thị, chưa gồm phí vận chuyển và voucher',
@@ -65,7 +66,9 @@ class OrderController extends Controller
                                 new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 398000),
                                 new OA\Property(property: 'discount_price', type: 'number', format: 'float', example: 100000),
                                 new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 298000),
-                                new OA\Property(property: 'status', type: 'string', example: 'pending'),
+                                new OA\Property(property: 'ship_price', type: 'number', format: 'float', nullable: true, example: 30000),
+                                new OA\Property(property: 'discount_ship_price', type: 'number', format: 'float', example: 0),
+                                new OA\Property(property: 'status', type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'], example: 'CONFIRMED'),
                                 new OA\Property(property: 'ghn_order_code', type: 'string', nullable: true, example: 'LJXX123456'),
                                 new OA\Property(property: 'ward_code', type: 'string', example: '1003544'),
                                 new OA\Property(property: 'ward_name', type: 'string', example: 'Phường An Khánh'),
@@ -74,6 +77,8 @@ class OrderController extends Controller
                                 new OA\Property(property: 'specific_address', type: 'string', example: '12 Nguyễn Văn A'),
                                 new OA\Property(property: 'full_name', type: 'string', example: 'Nguyễn Văn A'),
                                 new OA\Property(property: 'phone', type: 'string', example: '0901234567'),
+                                new OA\Property(property: 'voucher_code', type: 'string', nullable: true, example: 'WELCOME10'),
+                                new OA\Property(property: 'voucher_type', type: 'string', nullable: true, enum: ['ORDER', 'SHIPPING'], example: 'ORDER'),
                                 new OA\Property(
                                     property: 'order_details',
                                     type: 'array',
@@ -92,8 +97,8 @@ class OrderController extends Controller
                                     property: 'payment',
                                     properties: [
                                         new OA\Property(property: 'id', type: 'integer', example: 1),
-                                        new OA\Property(property: 'method', type: 'string', example: 'COD'),
-                                        new OA\Property(property: 'status', type: 'string', example: 'UNPAID'),
+                                        new OA\Property(property: 'method', type: 'string', enum: ['COD', 'VNPAY'], example: 'COD'),
+                                        new OA\Property(property: 'status', type: 'string', enum: ['UNPAID', 'PAID', 'REFUNDED'], example: 'UNPAID'),
                                     ],
                                     type: 'object'
                                 ),
@@ -180,6 +185,13 @@ class OrderController extends Controller
         tags: ['Đơn hàng'],
         parameters: [
             new OA\Parameter(
+                name: 'status',
+                description: 'Lọc theo trạng thái đơn hàng.',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'])
+            ),
+            new OA\Parameter(
                 name: 'page',
                 description: 'Trang hiện tại.',
                 in: 'query',
@@ -214,7 +226,7 @@ class OrderController extends Controller
                                     items: new OA\Items(
                                         properties: [
                                             new OA\Property(property: 'id', type: 'integer', example: 1),
-                                            new OA\Property(property: 'status', type: 'string', example: 'pending'),
+                                            new OA\Property(property: 'status', type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'], example: 'CONFIRMED'),
                                             new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 298000),
                                             new OA\Property(property: 'created_at', type: 'string', format: 'date-time', example: '2026-06-22T12:00:00.000000Z'),
                                             new OA\Property(property: 'full_name', type: 'string', example: 'Nguyễn Văn A'),
@@ -266,7 +278,7 @@ class OrderController extends Controller
             ),
             new OA\Response(
                 response: 422,
-                description: 'Dữ liệu phân trang không hợp lệ',
+                description: 'Trạng thái hoặc dữ liệu phân trang không hợp lệ',
                 content: new OA\JsonContent(
                     properties: [
                         new OA\Property(property: 'status', type: 'integer', example: 422),
@@ -284,7 +296,7 @@ class OrderController extends Controller
         $validated = $request->validate([
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
-            'status' => 'nullable|string|in:pending,processing,completed,cancelled,returned',
+            'status' => ['nullable', 'string', Rule::in(OrderStatus::values())],
         ]);
 
         $orders = $this->orderService->getOrdersByUser(
@@ -334,14 +346,71 @@ class OrderController extends Controller
         tags: ['Đơn hàng'],
         parameters: [
             new OA\Parameter(name: 'search', in: 'query', description: 'Tìm theo tên, email hoặc số điện thoại khách hàng.', required: false, schema: new OA\Schema(type: 'string')),
-            new OA\Parameter(name: 'status', in: 'query', description: 'Lọc theo trạng thái đơn hàng.', required: false, schema: new OA\Schema(type: 'string', enum: ['pending', 'processing', 'completed', 'cancelled', 'returned'])),
+            new OA\Parameter(name: 'status', in: 'query', description: 'Lọc theo trạng thái đơn hàng.', required: false, schema: new OA\Schema(type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'])),
             new OA\Parameter(name: 'page', in: 'query', description: 'Trang hiện tại.', required: false, schema: new OA\Schema(type: 'integer', minimum: 1), example: 1),
             new OA\Parameter(name: 'per_page', in: 'query', description: 'Số đơn hàng mỗi trang.', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100), example: 15),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Lấy danh sách đơn hàng thành công'),
+            new OA\Response(
+                response: 200,
+                description: 'Lấy danh sách đơn hàng thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 200),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, example: null),
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(
+                                    property: 'data',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 12),
+                                            new OA\Property(property: 'user_id', type: 'integer', example: 5),
+                                            new OA\Property(
+                                                property: 'customer',
+                                                properties: [
+                                                    new OA\Property(property: 'id', type: 'integer', example: 5),
+                                                    new OA\Property(property: 'name', type: 'string', nullable: true, example: 'Nguyễn Văn A'),
+                                                    new OA\Property(property: 'email', type: 'string', format: 'email', nullable: true, example: 'customer@example.com'),
+                                                    new OA\Property(property: 'phone', type: 'string', nullable: true, example: '0901234567'),
+                                                ],
+                                                type: 'object'
+                                            ),
+                                            new OA\Property(property: 'status', type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'], example: 'SHIPPING'),
+                                            new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 398000),
+                                            new OA\Property(property: 'discount_price', type: 'number', format: 'float', nullable: true, example: 50000),
+                                            new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 378000),
+                                            new OA\Property(property: 'payment_status', type: 'string', nullable: true, enum: ['UNPAID', 'PAID', 'REFUNDED'], example: 'PAID'),
+                                            new OA\Property(property: 'payment_method', type: 'string', nullable: true, enum: ['COD', 'VNPAY'], example: 'VNPAY'),
+                                            new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+                                            new OA\Property(property: 'item_count', type: 'integer', example: 2),
+                                        ],
+                                        type: 'object'
+                                    )
+                                ),
+                                new OA\Property(
+                                    property: 'pagination',
+                                    properties: [
+                                        new OA\Property(property: 'current_page', type: 'integer', example: 1),
+                                        new OA\Property(property: 'per_page', type: 'integer', example: 15),
+                                        new OA\Property(property: 'total', type: 'integer', example: 30),
+                                        new OA\Property(property: 'last_page', type: 'integer', example: 2),
+                                    ],
+                                    type: 'object'
+                                ),
+                            ],
+                            type: 'object'
+                        ),
+                    ],
+                    type: 'object'
+                )
+            ),
             new OA\Response(response: 401, description: 'Chưa xác thực'),
             new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+            new OA\Response(response: 422, description: 'Tham số tìm kiếm, trạng thái hoặc phân trang không hợp lệ'),
         ]
     )]
     public function adminIndex(Request $request)
@@ -350,7 +419,7 @@ class OrderController extends Controller
 
         $validated = $request->validate([
             'search' => 'nullable|string|max:255',
-            'status' => 'nullable|string|in:pending,processing,completed,cancelled,returned',
+            'status' => ['nullable', 'string', Rule::in(OrderStatus::values())],
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
         ]);
@@ -406,7 +475,75 @@ class OrderController extends Controller
             new OA\Parameter(name: 'order', in: 'path', description: 'ID đơn hàng.', required: true, schema: new OA\Schema(type: 'integer'), example: 1),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Lấy thông tin đơn hàng thành công'),
+            new OA\Response(
+                response: 200,
+                description: 'Lấy thông tin đơn hàng thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 200),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, example: null),
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', example: 12),
+                                new OA\Property(property: 'user_id', type: 'integer', example: 5),
+                                new OA\Property(property: 'customer', type: 'object'),
+                                new OA\Property(property: 'status', type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'], example: 'CONFIRMED'),
+                                new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 398000),
+                                new OA\Property(property: 'discount_price', type: 'number', format: 'float', nullable: true, example: 50000),
+                                new OA\Property(property: 'ship_price', type: 'number', format: 'float', nullable: true, example: 30000),
+                                new OA\Property(property: 'discount_ship_price', type: 'number', format: 'float', example: 0),
+                                new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 378000),
+                                new OA\Property(property: 'ghn_order_code', type: 'string', nullable: true, example: 'LJXX123456'),
+                                new OA\Property(
+                                    property: 'shipping_address',
+                                    properties: [
+                                        new OA\Property(property: 'ward_code', type: 'string', example: '1003544'),
+                                        new OA\Property(property: 'ward_name', type: 'string', example: 'Phường An Khánh'),
+                                        new OA\Property(property: 'province_id', type: 'integer', example: 202),
+                                        new OA\Property(property: 'province_name', type: 'string', example: 'Hồ Chí Minh'),
+                                        new OA\Property(property: 'specific_address', type: 'string', example: '12 Nguyễn Văn A'),
+                                        new OA\Property(property: 'full_name', type: 'string', example: 'Nguyễn Văn A'),
+                                        new OA\Property(property: 'phone', type: 'string', example: '0901234567'),
+                                    ],
+                                    type: 'object'
+                                ),
+                                new OA\Property(
+                                    property: 'payment',
+                                    properties: [
+                                        new OA\Property(property: 'id', type: 'integer', example: 8),
+                                        new OA\Property(property: 'method', type: 'string', enum: ['COD', 'VNPAY'], example: 'COD'),
+                                        new OA\Property(property: 'status', type: 'string', enum: ['UNPAID', 'PAID', 'REFUNDED'], example: 'UNPAID'),
+                                    ],
+                                    type: 'object',
+                                    nullable: true
+                                ),
+                                new OA\Property(
+                                    property: 'order_details',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 20),
+                                            new OA\Property(property: 'product_variant_id', type: 'integer', example: 7),
+                                            new OA\Property(property: 'product_name', type: 'string', nullable: true, example: 'Áo sơ mi'),
+                                            new OA\Property(property: 'variant_image', type: 'string', nullable: true, example: 'products/ao-so-mi.jpg'),
+                                            new OA\Property(property: 'quantity', type: 'integer', example: 2),
+                                            new OA\Property(property: 'unit_price', type: 'number', format: 'float', example: 199000),
+                                            new OA\Property(property: 'unit_discount_price', type: 'number', format: 'float', nullable: true, example: 25000),
+                                        ],
+                                        type: 'object'
+                                    )
+                                ),
+                                new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+                                new OA\Property(property: 'updated_at', type: 'string', format: 'date-time'),
+                            ],
+                            type: 'object'
+                        ),
+                    ],
+                    type: 'object'
+                )
+            ),
             new OA\Response(response: 401, description: 'Chưa xác thực'),
             new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
             new OA\Response(response: 404, description: 'Không tìm thấy đơn hàng'),
@@ -467,6 +604,7 @@ class OrderController extends Controller
             ),
             new OA\Response(response: 401, description: 'Chưa xác thực'),
             new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+            new OA\Response(response: 422, description: 'Ngày không đúng định dạng YYYY-MM-DD'),
         ]
     )]
     public function adminOrderSummary(Request $request)
@@ -478,7 +616,7 @@ class OrderController extends Controller
             'to_date' => 'nullable|date_format:Y-m-d',
         ]);
 
-        $query = Order::query()->where('status', 'completed');
+        $query = Order::query()->where('status', OrderStatus::COMPLETED->value);
 
         $fromDate = $validated['from_date'] ?? null;
         $toDate = $validated['to_date'] ?? null;
@@ -526,9 +664,9 @@ class OrderController extends Controller
                 schema: new OA\Schema(type: 'integer'),
                 example: 3
             ),
-            new OA\Parameter(name: 'status', in: 'query', description: 'Lọc theo trạng thái đơn hàng', required: false, schema: new OA\Schema(type: 'string', enum: ['pending', 'processing', 'completed', 'cancelled', 'returned'])),
-            new OA\Parameter(name: 'page', in: 'query', description: 'Số trang (mặc định 1)', required: false, schema: new OA\Schema(type: 'integer')),
-            new OA\Parameter(name: 'per_page', in: 'query', description: 'Số bản ghi trên trang (mặc định 15, tối đa 100)', required: false, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'status', in: 'query', description: 'Lọc theo trạng thái đơn hàng', required: false, schema: new OA\Schema(type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'])),
+            new OA\Parameter(name: 'page', in: 'query', description: 'Số trang.', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, default: 1), example: 1),
+            new OA\Parameter(name: 'per_page', in: 'query', description: 'Số bản ghi trên trang.', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100, default: 15), example: 15),
         ],
         responses: [
             new OA\Response(
@@ -542,7 +680,26 @@ class OrderController extends Controller
                         new OA\Property(
                             property: 'data',
                             properties: [
-                                new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                                new OA\Property(
+                                    property: 'data',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 12),
+                                            new OA\Property(property: 'user_id', type: 'integer', example: 5),
+                                            new OA\Property(property: 'customer', type: 'object'),
+                                            new OA\Property(property: 'status', type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'], example: 'COMPLETED'),
+                                            new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 398000),
+                                            new OA\Property(property: 'discount_price', type: 'number', format: 'float', nullable: true, example: 50000),
+                                            new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 378000),
+                                            new OA\Property(property: 'payment_status', type: 'string', nullable: true, enum: ['UNPAID', 'PAID', 'REFUNDED'], example: 'PAID'),
+                                            new OA\Property(property: 'payment_method', type: 'string', nullable: true, enum: ['COD', 'VNPAY'], example: 'VNPAY'),
+                                            new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+                                            new OA\Property(property: 'item_count', type: 'integer', example: 2),
+                                        ],
+                                        type: 'object'
+                                    )
+                                ),
                                 new OA\Property(
                                     property: 'pagination',
                                     properties: [
@@ -562,6 +719,8 @@ class OrderController extends Controller
             ),
             new OA\Response(response: 401, description: 'Chưa xác thực'),
             new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+            new OA\Response(response: 404, description: 'Không tìm thấy khách hàng'),
+            new OA\Response(response: 422, description: 'Trạng thái hoặc thông tin phân trang không hợp lệ'),
         ]
     )]
     public function adminOrdersByCustomer(Request $request, User $customer)
@@ -642,7 +801,7 @@ class OrderController extends Controller
                                 new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 398000),
                                 new OA\Property(property: 'discount_price', type: 'number', format: 'float', example: 100000),
                                 new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 298000),
-                                new OA\Property(property: 'status', type: 'string', example: 'pending'),
+                                new OA\Property(property: 'status', type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'], example: 'CONFIRMED'),
                                 new OA\Property(property: 'ghn_order_code', type: 'string', nullable: true, example: 'LJXX123456'),
                                 new OA\Property(property: 'ward_code', type: 'string', example: '1003544'),
                                 new OA\Property(property: 'ward_name', type: 'string', example: 'Phường An Khánh'),
@@ -685,8 +844,8 @@ class OrderController extends Controller
                                     property: 'payment',
                                     properties: [
                                         new OA\Property(property: 'id', type: 'integer', example: 1),
-                                        new OA\Property(property: 'method', type: 'string', example: 'COD'),
-                                        new OA\Property(property: 'status', type: 'string', example: 'UNPAID'),
+                                        new OA\Property(property: 'method', type: 'string', enum: ['COD', 'VNPAY'], example: 'COD'),
+                                        new OA\Property(property: 'status', type: 'string', enum: ['UNPAID', 'PAID', 'REFUNDED'], example: 'UNPAID'),
                                     ],
                                     type: 'object'
                                 ),
@@ -742,7 +901,7 @@ class OrderController extends Controller
         path: '/api/order/{order}/cancel',
         operationId: 'cancelOrder',
         summary: 'Hủy đơn hàng',
-        description: 'Hủy đơn hàng của người dùng đang đăng nhập. Chỉ các đơn ở trạng thái pending hoặc processing mới có thể hủy.',
+        description: 'Hủy đơn hàng của người dùng đang đăng nhập. Chỉ đơn PENDING_PAYMENT hoặc CONFIRMED mới có thể hủy.',
         security: [['bearerAuth' => []]],
         tags: ['Đơn hàng'],
         parameters: [
@@ -774,7 +933,7 @@ class OrderController extends Controller
                                 new OA\Property(property: 'ship_price', type: 'number', format: 'float', example: 49500),
                                 new OA\Property(property: 'discount_ship_price', type: 'number', format: 'float', example: 0),
                                 new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 447500),
-                                new OA\Property(property: 'status', type: 'string', example: 'cancelled'),
+                                new OA\Property(property: 'status', type: 'string', example: 'CANCELLED'),
                                 new OA\Property(property: 'ghn_order_code', type: 'string', nullable: true, example: 'LX8E8H'),
                                 new OA\Property(property: 'ward_code', type: 'string', example: '1003544'),
                                 new OA\Property(property: 'ward_name', type: 'string', example: 'Phường An Khánh'),
@@ -783,6 +942,26 @@ class OrderController extends Controller
                                 new OA\Property(property: 'specific_address', type: 'string', example: '12 Nguyễn Văn A'),
                                 new OA\Property(property: 'full_name', type: 'string', example: 'Nguyễn Văn A'),
                                 new OA\Property(property: 'phone', type: 'string', example: '0901234567'),
+                                new OA\Property(
+                                    property: 'payment',
+                                    properties: [
+                                        new OA\Property(property: 'method', type: 'string', enum: ['COD', 'VNPAY'], example: 'VNPAY'),
+                                        new OA\Property(property: 'status', type: 'string', enum: ['UNPAID', 'PAID', 'REFUNDED'], example: 'PAID'),
+                                    ],
+                                    type: 'object'
+                                ),
+                                new OA\Property(
+                                    property: 'refund_request',
+                                    description: 'Chỉ xuất hiện khi hủy đơn VNPAY đã thanh toán.',
+                                    properties: [
+                                        new OA\Property(property: 'id', type: 'integer', example: 4),
+                                        new OA\Property(property: 'reason', type: 'string', example: 'Hoàn tiền do hủy đơn hàng'),
+                                        new OA\Property(property: 'status', type: 'string', enum: ['pending', 'approved', 'rejected'], example: 'pending'),
+                                        new OA\Property(property: 'amount', type: 'number', format: 'float', example: 447500),
+                                    ],
+                                    type: 'object',
+                                    nullable: true
+                                ),
                             ],
                             type: 'object'
                         ),
@@ -843,6 +1022,81 @@ class OrderController extends Controller
         ]);
     }
 
+    #[OA\Post(
+        path: '/api/order/{order}/{orderDetail}/review',
+        operationId: 'reviewOrderDetail',
+        summary: 'Đánh giá sản phẩm trong đơn hàng',
+        description: 'Tạo một đánh giá cho sản phẩm thuộc đơn hàng COMPLETED của người dùng. Mỗi order detail chỉ được đánh giá một lần.',
+        security: [['bearerAuth' => []]],
+        tags: ['Đơn hàng'],
+        parameters: [
+            new OA\Parameter(name: 'order', in: 'path', description: 'ID đơn hàng.', required: true, schema: new OA\Schema(type: 'integer'), example: 12),
+            new OA\Parameter(name: 'orderDetail', in: 'path', description: 'ID dòng sản phẩm trong đơn hàng.', required: true, schema: new OA\Schema(type: 'integer'), example: 20),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['order', 'orderDetail', 'rating'],
+                properties: [
+                    new OA\Property(property: 'order', description: 'Phải trùng với ID order trên URL.', type: 'integer', example: 12),
+                    new OA\Property(property: 'orderDetail', description: 'Phải trùng với ID orderDetail trên URL.', type: 'integer', example: 20),
+                    new OA\Property(property: 'rating', type: 'integer', minimum: 1, maximum: 5, example: 5),
+                    new OA\Property(property: 'comment', type: 'string', maxLength: 1000, nullable: true, example: 'Sản phẩm đẹp, đúng kích thước.'),
+                    new OA\Property(
+                        property: 'imagePaths',
+                        description: 'Tối đa 5 đường dẫn ảnh đã tải lên.',
+                        type: 'array',
+                        items: new OA\Items(type: 'string', example: 'reviews/review-1.jpg'),
+                        maxItems: 5,
+                        nullable: true
+                    ),
+                ],
+                type: 'object'
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'Đánh giá sản phẩm thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 201),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Đánh giá sản phẩm thành công.'),
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', example: 9),
+                                new OA\Property(property: 'user_id', type: 'integer', example: 5),
+                                new OA\Property(property: 'product_id', type: 'integer', example: 7),
+                                new OA\Property(property: 'order_detail_id', type: 'integer', example: 20),
+                                new OA\Property(property: 'rating', type: 'integer', example: 5),
+                                new OA\Property(property: 'comment', type: 'string', nullable: true, example: 'Sản phẩm đẹp, đúng kích thước.'),
+                                new OA\Property(
+                                    property: 'images',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 2),
+                                            new OA\Property(property: 'image_path', type: 'string', example: 'reviews/review-1.jpg'),
+                                        ],
+                                        type: 'object'
+                                    )
+                                ),
+                                new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+                                new OA\Property(property: 'updated_at', type: 'string', format: 'date-time'),
+                            ],
+                            type: 'object'
+                        ),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 404, description: 'Không tìm thấy đơn hàng hoặc order detail'),
+            new OA\Response(response: 422, description: 'Dữ liệu không hợp lệ, đơn chưa COMPLETED hoặc sản phẩm đã được đánh giá'),
+        ]
+    )]
     public function review(Request $request, int $order, int $orderDetail)
     {
         $validated = $request->validate([
@@ -875,14 +1129,14 @@ class OrderController extends Controller
         path: '/api/ghn/webhook/order-status',
         operationId: 'updateOrderStatusFromGhnWebhook',
         summary: 'Webhook cập nhật trạng thái đơn hàng từ GHN',
-        description: 'Endpoint để GHN thông báo đơn hàng có thay đổi. GHN gửi kèm token do hệ thống cung cấp và mã vận đơn. Sau khi xác thực token, hệ thống gọi API chi tiết đơn hàng GHN để lấy status hiện tại rồi cập nhật trạng thái nội bộ: picked -> processing, delivered -> completed, return -> returned.',
+        description: 'Xác thực webhook, lấy trạng thái chính thức từ API chi tiết GHN rồi cập nhật đơn. Các trạng thái picked/storing/transporting/sorting/delivering/delivery_fail được ánh xạ thành SHIPPING; delivered thành COMPLETED; nhóm trạng thái hoàn hàng thành RETURNED. Khi đơn COD thành COMPLETED, payment được chuyển sang PAID. Chuyển trạng thái không hợp lệ hoặc webhook lặp lại sẽ được bỏ qua.',
         tags: ['GHN'],
         parameters: [
             new OA\Parameter(
                 name: 'X-GHN-Webhook-Token',
                 description: 'Token webhook do hệ thống cung cấp cho GHN. Có thể gửi bằng header này, X-Webhook-Token, Authorization: Bearer token, hoặc field token trong body.',
                 in: 'header',
-                required: true,
+                required: false,
                 schema: new OA\Schema(type: 'string'),
                 example: 'webhook-secret-token'
             ),
@@ -911,15 +1165,15 @@ class OrderController extends Controller
                             property: 'data',
                             properties: [
                                 new OA\Property(property: 'ghn_status', type: 'string', example: 'picked'),
-                                new OA\Property(property: 'old_status', type: 'string', example: 'processing'),
-                                new OA\Property(property: 'new_status', type: 'string', example: 'completed'),
+                                new OA\Property(property: 'old_status', type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'], example: 'CONFIRMED'),
+                                new OA\Property(property: 'new_status', type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'], example: 'SHIPPING'),
                                 new OA\Property(property: 'status_changed', type: 'boolean', example: true),
                                 new OA\Property(
                                     property: 'order',
                                     properties: [
                                         new OA\Property(property: 'id', type: 'integer', example: 1),
                                         new OA\Property(property: 'user_id', type: 'integer', example: 1),
-                                        new OA\Property(property: 'status', type: 'string', example: 'processing'),
+                                        new OA\Property(property: 'status', type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'], example: 'SHIPPING'),
                                         new OA\Property(property: 'ghn_order_code', type: 'string', example: '5E3NK3RS'),
                                         new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 300000),
                                         new OA\Property(property: 'discount_price', type: 'number', format: 'float', example: 0),
@@ -972,6 +1226,9 @@ class OrderController extends Controller
                     type: 'object'
                 )
             ),
+            new OA\Response(response: 400, description: 'GHN trả về dữ liệu hoặc trạng thái request không hợp lệ'),
+            new OA\Response(response: 500, description: 'Chưa cấu hình GHN token hoặc webhook token'),
+            new OA\Response(response: 502, description: 'Không thể kết nối tới GHN'),
         ]
     )]
     private function ensureAdmin(?User $user): void
@@ -983,7 +1240,7 @@ class OrderController extends Controller
 
     private function getAllowedOrderStatuses(): array
     {
-        return ['pending', 'processing', 'completed', 'cancelled', 'returned'];
+        return OrderStatus::values();
     }
 
     private function normalizeOrderStatus(?string $status): ?string
@@ -992,7 +1249,7 @@ class OrderController extends Controller
             return null;
         }
 
-        $normalized = strtolower($status);
+        $normalized = strtoupper($status);
 
         return in_array($normalized, $this->getAllowedOrderStatuses(), true) ? $normalized : null;
     }
@@ -1157,35 +1414,13 @@ class OrderController extends Controller
         }
 
         $ghnStatus = $body['data']['status'] ?? null;
-        $oldStatus = $order->status;
-
-        $statusMap = [
-            // Nếu là đã tới lấy hàng thì cập nhật thành đang giao
-            'picked' => 'processing',
-
-            // Nếu là đã giao hàng thì cập nhật thành hoàn thành
-            'delivered' => 'completed',
-
-            // Nếu là trả hàng thì cập nhật thành trả hàng
-            'return' => 'returned',
-        ];
-
-        if (isset($statusMap[$ghnStatus]) && $order->status !== $statusMap[$ghnStatus]) {
-            $order->status = $statusMap[$ghnStatus];
-            $order->save();
-        }
+        $result = $this->orderService->updateStatusFromGhn($orderCode, $ghnStatus);
 
         return response()->json([
             'status' => 200,
             'success' => true,
             'message' => null,
-            'data' => [
-                'ghn_status' => $ghnStatus,
-                'old_status' => $oldStatus,
-                'new_status' => $order->status,
-                'status_changed' => $oldStatus !== $order->status,
-                'order' => $order->fresh()->toArray(),
-            ],
+            'data' => $result,
         ]);
     }
 }

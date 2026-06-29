@@ -2,6 +2,7 @@
 
 namespace App\Http\Services;
 
+use App\Enums\OrderStatus;
 use App\Models\Address;
 use App\Models\Cart;
 use App\Models\Order;
@@ -93,7 +94,9 @@ class OrderService
                 ]);
             }
 
-            $orderStatus = $paymentMethod === 'COD' ? 'processing' : 'pending';
+            $orderStatus = $paymentMethod === 'COD'
+                ? OrderStatus::CONFIRMED->value
+                : OrderStatus::PENDING_PAYMENT->value;
             $shipPrice = $this->calculateShippingFee($address, $shippingItems);
             $discountShipPrice = 0;
             $voucher = null;
@@ -345,15 +348,19 @@ class OrderService
     public function cancelOrder(User $user, int $orderId): Order
     {
         return DB::transaction(function () use ($user, $orderId) {
-            $order = $user->orders()->with(['orderDetails.productVariant', 'payment'])->findOrFail($orderId);
+            $order = $user->orders()
+                ->whereKey($orderId)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $order->load(['orderDetails.productVariant', 'payment']);
 
-            if (! in_array($order->status, ['pending', 'processing'])) {
+            $currentStatus = OrderStatus::tryFrom($order->status);
+
+            if (! $currentStatus?->canBeCancelled()) {
                 throw ValidationException::withMessages([
                     'order' => 'Order cannot be canceled at this stage.',
                 ]);
             }
-
-            $currentStatus = $order->status;
 
             if ($order->ghn_order_code) {
                 $this->cancelGhnOrder($order->ghn_order_code);
@@ -367,23 +374,27 @@ class OrderService
                 }
             }
 
-            $order->status = 'cancelled';
+            $order->status = OrderStatus::CANCELLED->value;
 
-            if ($currentStatus === 'processing' && $order->payment && $order->payment->status === 'PAID') {
-                $order->payment->status = 'REFUNDED';
-                $order->payment->save();
+            if (
+                $currentStatus === OrderStatus::CONFIRMED
+                && $order->payment?->method === 'VNPAY'
+                && $order->payment->status === 'PAID'
+            ) {
 
-                $refundRequest = RefundRequest::create([
-                    'order_id' => $order->id,
-                    'amount' => $order->final_price,
-                    'status' => 'PENDING',
-                    'reason' => 'Hoàn tiền do hủy đơn hàng',
-                    'user_id' => $user->id,
-                ]);
+                RefundRequest::firstOrCreate(
+                    ['order_id' => $order->id],
+                    [
+                        'amount' => $order->final_price,
+                        'status' => 'pending',
+                        'reason' => 'Hoàn tiền do hủy đơn hàng',
+                        'user_id' => $user->id,
+                    ]
+                );
             }
             $order->save();
 
-            return $order;
+            return $order->load(['payment', 'refundRequest']);
         });
     }
 
@@ -442,7 +453,7 @@ class OrderService
         return DB::transaction(function () use ($user, $orderId, $orderDetailId, $rating, $comment, $imagePaths) {
             $order = $user->orders()->with('orderDetails')->findOrFail($orderId);
 
-            if ($order->status !== 'completed') {
+            if ($order->status !== OrderStatus::COMPLETED->value) {
                 throw ValidationException::withMessages([
                     'order' => 'You can only review delivered orders.',
                 ]);
@@ -480,7 +491,10 @@ class OrderService
         $cancelledCount = 0;
 
         Order::query()
-            ->where('status', 'pending')
+            ->where('status', OrderStatus::PENDING_PAYMENT->value)
+            ->whereHas('payment', function ($query) {
+                $query->where('method', 'VNPAY')->where('status', 'UNPAID');
+            })
             ->where('created_at', '<=', $thresholdTime)
             ->select('id')
             ->chunkById(100, function ($orders) use ($thresholdTime, &$cancelledCount) {
@@ -488,7 +502,7 @@ class OrderService
                     $cancelled = DB::transaction(function () use ($candidate, $thresholdTime) {
                         $order = Order::query()
                             ->whereKey($candidate->id)
-                            ->where('status', 'pending')
+                            ->where('status', OrderStatus::PENDING_PAYMENT->value)
                             ->where('created_at', '<=', $thresholdTime)
                             ->lockForUpdate()
                             ->first();
@@ -516,7 +530,7 @@ class OrderService
                         }
 
                         $order->update([
-                            'status' => 'cancelled',
+                            'status' => OrderStatus::CANCELLED->value,
                         ]);
 
                         return true;
@@ -529,5 +543,84 @@ class OrderService
             });
 
         return $cancelledCount;
+    }
+
+    public function updateStatusFromGhn(string $orderCode, ?string $ghnStatus): array
+    {
+        return DB::transaction(function () use ($orderCode, $ghnStatus) {
+            $order = Order::query()
+                ->where('ghn_order_code', $orderCode)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $order->load('payment');
+
+            $oldStatus = $order->status;
+            $targetStatus = $this->mapGhnStatus($ghnStatus);
+
+            if ($this->canApplyGhnStatus($oldStatus, $targetStatus)) {
+                $order->update(['status' => $targetStatus->value]);
+            }
+
+            if (
+                $targetStatus === OrderStatus::COMPLETED
+                && $order->status === OrderStatus::COMPLETED->value
+                && $order->payment?->method === 'COD'
+                && $order->payment->status !== 'PAID'
+            ) {
+                $order->payment->update(['status' => 'PAID']);
+            }
+
+            return [
+                'ghn_status' => $ghnStatus,
+                'old_status' => $oldStatus,
+                'new_status' => $order->status,
+                'status_changed' => $oldStatus !== $order->status,
+                'order' => $order->fresh(['payment'])->toArray(),
+            ];
+        });
+    }
+
+    private function mapGhnStatus(?string $ghnStatus): ?OrderStatus
+    {
+        return match ($ghnStatus) {
+            'picked' => OrderStatus::SHIPPING,
+            'storing' => OrderStatus::SHIPPING,
+            'transporting' => OrderStatus::SHIPPING,
+            'sorting' => OrderStatus::SHIPPING,
+            'delivering' => OrderStatus::SHIPPING,
+            'money_collect_picking' => OrderStatus::SHIPPING,
+            'money_collect_delivering' => OrderStatus::SHIPPING,
+            'delivery_fail' => OrderStatus::SHIPPING,
+            'delivered' => OrderStatus::COMPLETED,
+            'waiting_to_return' => OrderStatus::RETURNED,
+            'return' => OrderStatus::RETURNED,
+            'return_transporting' => OrderStatus::RETURNED,
+            'return_sorting' => OrderStatus::RETURNED,
+            'returning' => OrderStatus::RETURNED,
+            'return_fail' => OrderStatus::RETURNED,
+            'returned' => OrderStatus::RETURNED,
+            default => null,
+        };
+    }
+
+    private function canApplyGhnStatus(string $currentStatus, ?OrderStatus $targetStatus): bool
+    {
+        if ($targetStatus === null || $currentStatus === $targetStatus->value) {
+            return false;
+        }
+
+        return match ($targetStatus) {
+            OrderStatus::SHIPPING => $currentStatus === OrderStatus::CONFIRMED->value,
+            OrderStatus::COMPLETED => in_array($currentStatus, [
+                OrderStatus::CONFIRMED->value,
+                OrderStatus::SHIPPING->value,
+            ], true),
+            OrderStatus::RETURNED => in_array($currentStatus, [
+                OrderStatus::CONFIRMED->value,
+                OrderStatus::SHIPPING->value,
+                OrderStatus::COMPLETED->value,
+            ], true),
+            default => false,
+        };
     }
 }

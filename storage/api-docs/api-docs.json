@@ -2785,6 +2785,23 @@
                 "operationId": "getUserOrders",
                 "parameters": [
                     {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Lọc theo trạng thái đơn hàng.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "PENDING_PAYMENT",
+                                "CONFIRMED",
+                                "SHIPPING",
+                                "COMPLETED",
+                                "CANCELLED",
+                                "RETURNED"
+                            ]
+                        }
+                    },
+                    {
                         "name": "page",
                         "in": "query",
                         "description": "Trang hiện tại.",
@@ -2840,7 +2857,15 @@
                                                             },
                                                             "status": {
                                                                 "type": "string",
-                                                                "example": "pending"
+                                                                "example": "CONFIRMED",
+                                                                "enum": [
+                                                                    "PENDING_PAYMENT",
+                                                                    "CONFIRMED",
+                                                                    "SHIPPING",
+                                                                    "COMPLETED",
+                                                                    "CANCELLED",
+                                                                    "RETURNED"
+                                                                ]
                                                             },
                                                             "final_price": {
                                                                 "type": "number",
@@ -2941,7 +2966,7 @@
                         }
                     },
                     "422": {
-                        "description": "Dữ liệu phân trang không hợp lệ",
+                        "description": "Trạng thái hoặc dữ liệu phân trang không hợp lệ",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2981,7 +3006,7 @@
                     "Đơn hàng"
                 ],
                 "summary": "Tạo đơn hàng từ giỏ hàng",
-                "description": "Tạo đơn hàng từ giỏ hàng hiện tại của người dùng. Phần coupon/gift code chưa được áp dụng. Giá sản phẩm được tính theo công thức: giá gốc - giá giảm giá.",
+                "description": "Tạo đơn từ giỏ hàng, kiểm tra lại tồn kho và giá, áp dụng voucher rồi tạo vận đơn GHN. COD được tạo ở trạng thái CONFIRMED với payment UNPAID; VNPAY được tạo ở trạng thái PENDING_PAYMENT với payment UNPAID.",
                 "operationId": "createOrder",
                 "requestBody": {
                     "required": true,
@@ -2997,13 +3022,16 @@
                                         "example": 1
                                     },
                                     "gift_code": {
+                                        "description": "Mã voucher đang hoạt động và còn hạn.",
                                         "type": "string",
-                                        "example": null,
+                                        "example": "WELCOME10",
                                         "nullable": true
                                     },
                                     "payment_method": {
+                                        "description": "Mặc định là COD.",
                                         "type": "string",
                                         "example": "COD",
+                                        "default": "COD",
                                         "enum": [
                                             "COD",
                                             "VNPAY"
@@ -3067,9 +3095,28 @@
                                                     "format": "float",
                                                     "example": 298000
                                                 },
+                                                "ship_price": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 30000,
+                                                    "nullable": true
+                                                },
+                                                "discount_ship_price": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 0
+                                                },
                                                 "status": {
                                                     "type": "string",
-                                                    "example": "pending"
+                                                    "example": "CONFIRMED",
+                                                    "enum": [
+                                                        "PENDING_PAYMENT",
+                                                        "CONFIRMED",
+                                                        "SHIPPING",
+                                                        "COMPLETED",
+                                                        "CANCELLED",
+                                                        "RETURNED"
+                                                    ]
                                                 },
                                                 "ghn_order_code": {
                                                     "type": "string",
@@ -3103,6 +3150,20 @@
                                                 "phone": {
                                                     "type": "string",
                                                     "example": "0901234567"
+                                                },
+                                                "voucher_code": {
+                                                    "type": "string",
+                                                    "example": "WELCOME10",
+                                                    "nullable": true
+                                                },
+                                                "voucher_type": {
+                                                    "type": "string",
+                                                    "example": "ORDER",
+                                                    "nullable": true,
+                                                    "enum": [
+                                                        "ORDER",
+                                                        "SHIPPING"
+                                                    ]
                                                 },
                                                 "order_details": {
                                                     "type": "array",
@@ -3143,11 +3204,20 @@
                                                         },
                                                         "method": {
                                                             "type": "string",
-                                                            "example": "COD"
+                                                            "example": "COD",
+                                                            "enum": [
+                                                                "COD",
+                                                                "VNPAY"
+                                                            ]
                                                         },
                                                         "status": {
                                                             "type": "string",
-                                                            "example": "UNPAID"
+                                                            "example": "UNPAID",
+                                                            "enum": [
+                                                                "UNPAID",
+                                                                "PAID",
+                                                                "REFUNDED"
+                                                            ]
                                                         }
                                                     },
                                                     "type": "object"
@@ -3253,11 +3323,12 @@
                         "schema": {
                             "type": "string",
                             "enum": [
-                                "pending",
-                                "processing",
-                                "completed",
-                                "cancelled",
-                                "returned"
+                                "PENDING_PAYMENT",
+                                "CONFIRMED",
+                                "SHIPPING",
+                                "COMPLETED",
+                                "CANCELLED",
+                                "RETURNED"
                             ]
                         }
                     },
@@ -3287,13 +3358,160 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Lấy danh sách đơn hàng thành công"
+                        "description": "Lấy danh sách đơn hàng thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 12
+                                                            },
+                                                            "user_id": {
+                                                                "type": "integer",
+                                                                "example": 5
+                                                            },
+                                                            "customer": {
+                                                                "properties": {
+                                                                    "id": {
+                                                                        "type": "integer",
+                                                                        "example": 5
+                                                                    },
+                                                                    "name": {
+                                                                        "type": "string",
+                                                                        "example": "Nguyễn Văn A",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "email": {
+                                                                        "type": "string",
+                                                                        "format": "email",
+                                                                        "example": "customer@example.com",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "phone": {
+                                                                        "type": "string",
+                                                                        "example": "0901234567",
+                                                                        "nullable": true
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "SHIPPING",
+                                                                "enum": [
+                                                                    "PENDING_PAYMENT",
+                                                                    "CONFIRMED",
+                                                                    "SHIPPING",
+                                                                    "COMPLETED",
+                                                                    "CANCELLED",
+                                                                    "RETURNED"
+                                                                ]
+                                                            },
+                                                            "total_price": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 398000
+                                                            },
+                                                            "discount_price": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 50000,
+                                                                "nullable": true
+                                                            },
+                                                            "final_price": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 378000
+                                                            },
+                                                            "payment_status": {
+                                                                "type": "string",
+                                                                "example": "PAID",
+                                                                "nullable": true,
+                                                                "enum": [
+                                                                    "UNPAID",
+                                                                    "PAID",
+                                                                    "REFUNDED"
+                                                                ]
+                                                            },
+                                                            "payment_method": {
+                                                                "type": "string",
+                                                                "example": "VNPAY",
+                                                                "nullable": true,
+                                                                "enum": [
+                                                                    "COD",
+                                                                    "VNPAY"
+                                                                ]
+                                                            },
+                                                            "created_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            },
+                                                            "item_count": {
+                                                                "type": "integer",
+                                                                "example": 2
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "pagination": {
+                                                    "properties": {
+                                                        "current_page": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "per_page": {
+                                                            "type": "integer",
+                                                            "example": 15
+                                                        },
+                                                        "total": {
+                                                            "type": "integer",
+                                                            "example": 30
+                                                        },
+                                                        "last_page": {
+                                                            "type": "integer",
+                                                            "example": 2
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "description": "Chưa xác thực"
                     },
                     "403": {
                         "description": "Chỉ quản trị viên được phép"
+                    },
+                    "422": {
+                        "description": "Tham số tìm kiếm, trạng thái hoặc phân trang không hợp lệ"
                     }
                 },
                 "security": [
@@ -3325,7 +3543,198 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Lấy thông tin đơn hàng thành công"
+                        "description": "Lấy thông tin đơn hàng thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 200
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 12
+                                                },
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "customer": {
+                                                    "type": "object"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "CONFIRMED",
+                                                    "enum": [
+                                                        "PENDING_PAYMENT",
+                                                        "CONFIRMED",
+                                                        "SHIPPING",
+                                                        "COMPLETED",
+                                                        "CANCELLED",
+                                                        "RETURNED"
+                                                    ]
+                                                },
+                                                "total_price": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 398000
+                                                },
+                                                "discount_price": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 50000,
+                                                    "nullable": true
+                                                },
+                                                "ship_price": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 30000,
+                                                    "nullable": true
+                                                },
+                                                "discount_ship_price": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 0
+                                                },
+                                                "final_price": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 378000
+                                                },
+                                                "ghn_order_code": {
+                                                    "type": "string",
+                                                    "example": "LJXX123456",
+                                                    "nullable": true
+                                                },
+                                                "shipping_address": {
+                                                    "properties": {
+                                                        "ward_code": {
+                                                            "type": "string",
+                                                            "example": "1003544"
+                                                        },
+                                                        "ward_name": {
+                                                            "type": "string",
+                                                            "example": "Phường An Khánh"
+                                                        },
+                                                        "province_id": {
+                                                            "type": "integer",
+                                                            "example": 202
+                                                        },
+                                                        "province_name": {
+                                                            "type": "string",
+                                                            "example": "Hồ Chí Minh"
+                                                        },
+                                                        "specific_address": {
+                                                            "type": "string",
+                                                            "example": "12 Nguyễn Văn A"
+                                                        },
+                                                        "full_name": {
+                                                            "type": "string",
+                                                            "example": "Nguyễn Văn A"
+                                                        },
+                                                        "phone": {
+                                                            "type": "string",
+                                                            "example": "0901234567"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "payment": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 8
+                                                        },
+                                                        "method": {
+                                                            "type": "string",
+                                                            "example": "COD",
+                                                            "enum": [
+                                                                "COD",
+                                                                "VNPAY"
+                                                            ]
+                                                        },
+                                                        "status": {
+                                                            "type": "string",
+                                                            "example": "UNPAID",
+                                                            "enum": [
+                                                                "UNPAID",
+                                                                "PAID",
+                                                                "REFUNDED"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "type": "object",
+                                                    "nullable": true
+                                                },
+                                                "order_details": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 20
+                                                            },
+                                                            "product_variant_id": {
+                                                                "type": "integer",
+                                                                "example": 7
+                                                            },
+                                                            "product_name": {
+                                                                "type": "string",
+                                                                "example": "Áo sơ mi",
+                                                                "nullable": true
+                                                            },
+                                                            "variant_image": {
+                                                                "type": "string",
+                                                                "example": "products/ao-so-mi.jpg",
+                                                                "nullable": true
+                                                            },
+                                                            "quantity": {
+                                                                "type": "integer",
+                                                                "example": 2
+                                                            },
+                                                            "unit_price": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 199000
+                                                            },
+                                                            "unit_discount_price": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 25000,
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "description": "Chưa xác thực"
@@ -3434,6 +3843,9 @@
                     },
                     "403": {
                         "description": "Chỉ quản trị viên được phép"
+                    },
+                    "422": {
+                        "description": "Ngày không đúng định dạng YYYY-MM-DD"
                     }
                 },
                 "security": [
@@ -3470,31 +3882,39 @@
                         "schema": {
                             "type": "string",
                             "enum": [
-                                "pending",
-                                "processing",
-                                "completed",
-                                "cancelled",
-                                "returned"
+                                "PENDING_PAYMENT",
+                                "CONFIRMED",
+                                "SHIPPING",
+                                "COMPLETED",
+                                "CANCELLED",
+                                "RETURNED"
                             ]
                         }
                     },
                     {
                         "name": "page",
                         "in": "query",
-                        "description": "Số trang (mặc định 1)",
+                        "description": "Số trang.",
                         "required": false,
                         "schema": {
-                            "type": "integer"
-                        }
+                            "type": "integer",
+                            "default": 1,
+                            "minimum": 1
+                        },
+                        "example": 1
                     },
                     {
                         "name": "per_page",
                         "in": "query",
-                        "description": "Số bản ghi trên trang (mặc định 15, tối đa 100)",
+                        "description": "Số bản ghi trên trang.",
                         "required": false,
                         "schema": {
-                            "type": "integer"
-                        }
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        },
+                        "example": 15
                     }
                 ],
                 "responses": {
@@ -3522,6 +3942,74 @@
                                                 "data": {
                                                     "type": "array",
                                                     "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 12
+                                                            },
+                                                            "user_id": {
+                                                                "type": "integer",
+                                                                "example": 5
+                                                            },
+                                                            "customer": {
+                                                                "type": "object"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "COMPLETED",
+                                                                "enum": [
+                                                                    "PENDING_PAYMENT",
+                                                                    "CONFIRMED",
+                                                                    "SHIPPING",
+                                                                    "COMPLETED",
+                                                                    "CANCELLED",
+                                                                    "RETURNED"
+                                                                ]
+                                                            },
+                                                            "total_price": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 398000
+                                                            },
+                                                            "discount_price": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 50000,
+                                                                "nullable": true
+                                                            },
+                                                            "final_price": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 378000
+                                                            },
+                                                            "payment_status": {
+                                                                "type": "string",
+                                                                "example": "PAID",
+                                                                "nullable": true,
+                                                                "enum": [
+                                                                    "UNPAID",
+                                                                    "PAID",
+                                                                    "REFUNDED"
+                                                                ]
+                                                            },
+                                                            "payment_method": {
+                                                                "type": "string",
+                                                                "example": "VNPAY",
+                                                                "nullable": true,
+                                                                "enum": [
+                                                                    "COD",
+                                                                    "VNPAY"
+                                                                ]
+                                                            },
+                                                            "created_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            },
+                                                            "item_count": {
+                                                                "type": "integer",
+                                                                "example": 2
+                                                            }
+                                                        },
                                                         "type": "object"
                                                     }
                                                 },
@@ -3556,6 +4044,12 @@
                     },
                     "403": {
                         "description": "Chỉ quản trị viên được phép"
+                    },
+                    "404": {
+                        "description": "Không tìm thấy khách hàng"
+                    },
+                    "422": {
+                        "description": "Trạng thái hoặc thông tin phân trang không hợp lệ"
                     }
                 },
                 "security": [
@@ -3632,7 +4126,15 @@
                                                 },
                                                 "status": {
                                                     "type": "string",
-                                                    "example": "pending"
+                                                    "example": "CONFIRMED",
+                                                    "enum": [
+                                                        "PENDING_PAYMENT",
+                                                        "CONFIRMED",
+                                                        "SHIPPING",
+                                                        "COMPLETED",
+                                                        "CANCELLED",
+                                                        "RETURNED"
+                                                    ]
                                                 },
                                                 "ghn_order_code": {
                                                     "type": "string",
@@ -3733,11 +4235,20 @@
                                                         },
                                                         "method": {
                                                             "type": "string",
-                                                            "example": "COD"
+                                                            "example": "COD",
+                                                            "enum": [
+                                                                "COD",
+                                                                "VNPAY"
+                                                            ]
                                                         },
                                                         "status": {
                                                             "type": "string",
-                                                            "example": "UNPAID"
+                                                            "example": "UNPAID",
+                                                            "enum": [
+                                                                "UNPAID",
+                                                                "PAID",
+                                                                "REFUNDED"
+                                                            ]
                                                         }
                                                     },
                                                     "type": "object"
@@ -3823,7 +4334,7 @@
                     "Đơn hàng"
                 ],
                 "summary": "Hủy đơn hàng",
-                "description": "Hủy đơn hàng của người dùng đang đăng nhập. Chỉ các đơn ở trạng thái pending hoặc processing mới có thể hủy.",
+                "description": "Hủy đơn hàng của người dùng đang đăng nhập. Chỉ đơn PENDING_PAYMENT hoặc CONFIRMED mới có thể hủy.",
                 "operationId": "cancelOrder",
                 "parameters": [
                     {
@@ -3893,7 +4404,7 @@
                                                 },
                                                 "status": {
                                                     "type": "string",
-                                                    "example": "cancelled"
+                                                    "example": "CANCELLED"
                                                 },
                                                 "ghn_order_code": {
                                                     "type": "string",
@@ -3927,6 +4438,57 @@
                                                 "phone": {
                                                     "type": "string",
                                                     "example": "0901234567"
+                                                },
+                                                "payment": {
+                                                    "properties": {
+                                                        "method": {
+                                                            "type": "string",
+                                                            "example": "VNPAY",
+                                                            "enum": [
+                                                                "COD",
+                                                                "VNPAY"
+                                                            ]
+                                                        },
+                                                        "status": {
+                                                            "type": "string",
+                                                            "example": "PAID",
+                                                            "enum": [
+                                                                "UNPAID",
+                                                                "PAID",
+                                                                "REFUNDED"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "refund_request": {
+                                                    "description": "Chỉ xuất hiện khi hủy đơn VNPAY đã thanh toán.",
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 4
+                                                        },
+                                                        "reason": {
+                                                            "type": "string",
+                                                            "example": "Hoàn tiền do hủy đơn hàng"
+                                                        },
+                                                        "status": {
+                                                            "type": "string",
+                                                            "example": "pending",
+                                                            "enum": [
+                                                                "pending",
+                                                                "approved",
+                                                                "rejected"
+                                                            ]
+                                                        },
+                                                        "amount": {
+                                                            "type": "number",
+                                                            "format": "float",
+                                                            "example": 447500
+                                                        }
+                                                    },
+                                                    "type": "object",
+                                                    "nullable": true
                                                 }
                                             },
                                             "type": "object"
@@ -4032,20 +4594,195 @@
                 ]
             }
         },
+        "/api/order/{order}/{orderDetail}/review": {
+            "post": {
+                "tags": [
+                    "Đơn hàng"
+                ],
+                "summary": "Đánh giá sản phẩm trong đơn hàng",
+                "description": "Tạo một đánh giá cho sản phẩm thuộc đơn hàng COMPLETED của người dùng. Mỗi order detail chỉ được đánh giá một lần.",
+                "operationId": "reviewOrderDetail",
+                "parameters": [
+                    {
+                        "name": "order",
+                        "in": "path",
+                        "description": "ID đơn hàng.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 12
+                    },
+                    {
+                        "name": "orderDetail",
+                        "in": "path",
+                        "description": "ID dòng sản phẩm trong đơn hàng.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "example": 20
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "order",
+                                    "orderDetail",
+                                    "rating"
+                                ],
+                                "properties": {
+                                    "order": {
+                                        "description": "Phải trùng với ID order trên URL.",
+                                        "type": "integer",
+                                        "example": 12
+                                    },
+                                    "orderDetail": {
+                                        "description": "Phải trùng với ID orderDetail trên URL.",
+                                        "type": "integer",
+                                        "example": 20
+                                    },
+                                    "rating": {
+                                        "type": "integer",
+                                        "example": 5,
+                                        "maximum": 5,
+                                        "minimum": 1
+                                    },
+                                    "comment": {
+                                        "type": "string",
+                                        "example": "Sản phẩm đẹp, đúng kích thước.",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    },
+                                    "imagePaths": {
+                                        "description": "Tối đa 5 đường dẫn ảnh đã tải lên.",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "example": "reviews/review-1.jpg"
+                                        },
+                                        "nullable": true,
+                                        "maxItems": 5
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Đánh giá sản phẩm thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "integer",
+                                            "example": 201
+                                        },
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Đánh giá sản phẩm thành công."
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 9
+                                                },
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "product_id": {
+                                                    "type": "integer",
+                                                    "example": 7
+                                                },
+                                                "order_detail_id": {
+                                                    "type": "integer",
+                                                    "example": 20
+                                                },
+                                                "rating": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "comment": {
+                                                    "type": "string",
+                                                    "example": "Sản phẩm đẹp, đúng kích thước.",
+                                                    "nullable": true
+                                                },
+                                                "images": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 2
+                                                            },
+                                                            "image_path": {
+                                                                "type": "string",
+                                                                "example": "reviews/review-1.jpg"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Chưa xác thực"
+                    },
+                    "404": {
+                        "description": "Không tìm thấy đơn hàng hoặc order detail"
+                    },
+                    "422": {
+                        "description": "Dữ liệu không hợp lệ, đơn chưa COMPLETED hoặc sản phẩm đã được đánh giá"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/ghn/webhook/order-status": {
             "post": {
                 "tags": [
                     "GHN"
                 ],
                 "summary": "Webhook cập nhật trạng thái đơn hàng từ GHN",
-                "description": "Endpoint để GHN thông báo đơn hàng có thay đổi. GHN gửi kèm token do hệ thống cung cấp và mã vận đơn. Sau khi xác thực token, hệ thống gọi API chi tiết đơn hàng GHN để lấy status hiện tại rồi cập nhật trạng thái nội bộ: picked -> processing, delivered -> completed, return -> returned.",
+                "description": "Xác thực webhook, lấy trạng thái chính thức từ API chi tiết GHN rồi cập nhật đơn. Các trạng thái picked/storing/transporting/sorting/delivering/delivery_fail được ánh xạ thành SHIPPING; delivered thành COMPLETED; nhóm trạng thái hoàn hàng thành RETURNED. Khi đơn COD thành COMPLETED, payment được chuyển sang PAID. Chuyển trạng thái không hợp lệ hoặc webhook lặp lại sẽ được bỏ qua.",
                 "operationId": "updateOrderStatusFromGhnWebhook",
                 "parameters": [
                     {
                         "name": "X-GHN-Webhook-Token",
                         "in": "header",
                         "description": "Token webhook do hệ thống cung cấp cho GHN. Có thể gửi bằng header này, X-Webhook-Token, Authorization: Bearer token, hoặc field token trong body.",
-                        "required": true,
+                        "required": false,
                         "schema": {
                             "type": "string"
                         },
@@ -4104,11 +4841,27 @@
                                                 },
                                                 "old_status": {
                                                     "type": "string",
-                                                    "example": "processing"
+                                                    "example": "CONFIRMED",
+                                                    "enum": [
+                                                        "PENDING_PAYMENT",
+                                                        "CONFIRMED",
+                                                        "SHIPPING",
+                                                        "COMPLETED",
+                                                        "CANCELLED",
+                                                        "RETURNED"
+                                                    ]
                                                 },
                                                 "new_status": {
                                                     "type": "string",
-                                                    "example": "completed"
+                                                    "example": "SHIPPING",
+                                                    "enum": [
+                                                        "PENDING_PAYMENT",
+                                                        "CONFIRMED",
+                                                        "SHIPPING",
+                                                        "COMPLETED",
+                                                        "CANCELLED",
+                                                        "RETURNED"
+                                                    ]
                                                 },
                                                 "status_changed": {
                                                     "type": "boolean",
@@ -4126,7 +4879,15 @@
                                                         },
                                                         "status": {
                                                             "type": "string",
-                                                            "example": "processing"
+                                                            "example": "SHIPPING",
+                                                            "enum": [
+                                                                "PENDING_PAYMENT",
+                                                                "CONFIRMED",
+                                                                "SHIPPING",
+                                                                "COMPLETED",
+                                                                "CANCELLED",
+                                                                "RETURNED"
+                                                            ]
                                                         },
                                                         "ghn_order_code": {
                                                             "type": "string",
@@ -4242,6 +5003,15 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "GHN trả về dữ liệu hoặc trạng thái request không hợp lệ"
+                    },
+                    "500": {
+                        "description": "Chưa cấu hình GHN token hoặc webhook token"
+                    },
+                    "502": {
+                        "description": "Không thể kết nối tới GHN"
                     }
                 }
             }
@@ -6009,7 +6779,7 @@
                     "VNPAY"
                 ],
                 "summary": "Xử lý kết quả thanh toán VNPAY",
-                "description": "Endpoint nhận redirect từ VNPAY sau khi người dùng thanh toán. Hệ thống xác thực chữ ký, nếu giao dịch thành công thì cập nhật payment thành PAID và order thành processing.",
+                "description": "Endpoint nhận redirect từ VNPAY sau khi người dùng thanh toán. Hệ thống xác thực chữ ký, nếu giao dịch thành công thì cập nhật payment thành PAID và order thành CONFIRMED.",
                 "operationId": "handleVnpayReturn",
                 "parameters": [
                     {
@@ -6086,7 +6856,7 @@
                                                 },
                                                 "order_status": {
                                                     "type": "string",
-                                                    "example": "processing"
+                                                    "example": "CONFIRMED"
                                                 },
                                                 "payment_status": {
                                                     "type": "string",
