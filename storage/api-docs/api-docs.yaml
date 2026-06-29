@@ -3026,6 +3026,28 @@ paths:
           schema:
             type: integer
           example: 1
+        -
+          name: attribute_value_ids
+          in: query
+          description: 'Lọc sản phẩm có cùng một biến thể chứa đầy đủ các ID giá trị thuộc tính. Hỗ trợ chuỗi phân cách bằng dấu phẩy, ví dụ ID màu Đỏ và size M.'
+          required: false
+          schema:
+            type: string
+          example: '1,4'
+        -
+          name: attr
+          in: query
+          description: 'Lọc theo tên thuộc tính và value/display_value. Ví dụ: attr[color]=red&attr[size]=M,L. Các thuộc tính phải cùng thuộc một biến thể.'
+          required: false
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+          example:
+            color: red
+            size: 'M,L'
       responses:
         200:
           description: 'Lấy danh sách sản phẩm thành công'

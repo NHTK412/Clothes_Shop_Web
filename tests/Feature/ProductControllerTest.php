@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\AttributeType;
+use App\Models\AttributeValue;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
@@ -34,6 +37,28 @@ class ProductControllerTest extends TestCase
             $table->string('image')->nullable();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
+        });
+
+        Schema::create('attribute_types', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('display_name')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('attribute_values', function (Blueprint $table) {
+            $table->id();
+            $table->string('value');
+            $table->string('display_value');
+            $table->json('meta_data')->nullable();
+            $table->foreignId('attribute_type_id')->constrained()->cascadeOnDelete();
+            $table->timestamps();
+        });
+
+        Schema::create('attribute_value_product_variant', function (Blueprint $table) {
+            $table->foreignId('product_variant_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('attribute_value_id')->constrained()->cascadeOnDelete();
+            $table->primary(['product_variant_id', 'attribute_value_id']);
         });
 
         Schema::create('categories', function (Blueprint $table) {
@@ -150,6 +175,68 @@ class ProductControllerTest extends TestCase
                 'price' => 100000,
             ])
             ->assertForbidden();
+    }
+
+    public function test_products_can_be_filtered_by_attribute_value_ids_or_attribute_names(): void
+    {
+        $color = AttributeType::create(['name' => 'color', 'display_name' => 'Màu sắc']);
+        $size = AttributeType::create(['name' => 'size', 'display_name' => 'Kích thước']);
+
+        $red = AttributeValue::create([
+            'attribute_type_id' => $color->id,
+            'value' => 'red',
+            'display_value' => 'Đỏ',
+        ]);
+        $blue = AttributeValue::create([
+            'attribute_type_id' => $color->id,
+            'value' => 'blue',
+            'display_value' => 'Xanh',
+        ]);
+        $medium = AttributeValue::create([
+            'attribute_type_id' => $size->id,
+            'value' => 'M',
+            'display_value' => 'M',
+        ]);
+        $large = AttributeValue::create([
+            'attribute_type_id' => $size->id,
+            'value' => 'L',
+            'display_value' => 'L',
+        ]);
+
+        $matchingProduct = Product::create(['name' => 'Red medium shirt', 'price' => 199000]);
+        $matchingVariant = ProductVariant::create([
+            'product_id' => $matchingProduct->id,
+            'sku' => 'RED-M',
+            'price' => 199000,
+            'stock' => 10,
+        ]);
+        $matchingVariant->attributeValues()->sync([$red->id, $medium->id]);
+
+        $nonMatchingProduct = Product::create(['name' => 'Mixed shirt', 'price' => 199000]);
+        $redLargeVariant = ProductVariant::create([
+            'product_id' => $nonMatchingProduct->id,
+            'sku' => 'RED-L',
+            'price' => 199000,
+            'stock' => 10,
+        ]);
+        $redLargeVariant->attributeValues()->sync([$red->id, $large->id]);
+        $blueMediumVariant = ProductVariant::create([
+            'product_id' => $nonMatchingProduct->id,
+            'sku' => 'BLUE-M',
+            'price' => 199000,
+            'stock' => 10,
+        ]);
+        $blueMediumVariant->attributeValues()->sync([$blue->id, $medium->id]);
+
+        $this->getJson("/api/products?per_page=0&attribute_value_ids={$red->id},{$medium->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data.items')
+            ->assertJsonPath('data.items.0.id', $matchingProduct->id);
+
+        $this->getJson('/api/products?per_page=0&attr[color]=red&attr[size]=M')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.items')
+            ->assertJsonPath('data.items.0.id', $matchingProduct->id);
     }
 
     public function test_soft_deleted_product_is_hidden_but_its_variant_is_preserved(): void

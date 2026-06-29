@@ -9,7 +9,6 @@ use App\Models\ProductVariant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 
 class ProductController extends Controller
@@ -32,6 +31,27 @@ class ProductController extends Controller
             new OA\Parameter(name: 'max_price', in: 'query', required: false, schema: new OA\Schema(type: 'number'), example: 500000),
             new OA\Parameter(name: 'in_stock', in: 'query', required: false, schema: new OA\Schema(type: 'boolean'), example: true),
             new OA\Parameter(name: 'promotionId', in: 'query', required: false, schema: new OA\Schema(type: 'integer'), example: 1),
+            new OA\Parameter(
+                name: 'attribute_value_ids',
+                description: 'Lọc sản phẩm có cùng một biến thể chứa đầy đủ các ID giá trị thuộc tính. Hỗ trợ chuỗi phân cách bằng dấu phẩy, ví dụ ID màu Đỏ và size M.',
+                in: 'query',
+                required: false,
+                schema: new OA\Schema(type: 'string'),
+                example: '1,4'
+            ),
+            new OA\Parameter(
+                name: 'attr',
+                description: 'Lọc theo tên thuộc tính và value/display_value. Ví dụ: attr[color]=red&attr[size]=M,L. Các thuộc tính phải cùng thuộc một biến thể.',
+                in: 'query',
+                required: false,
+                style: 'deepObject',
+                explode: true,
+                schema: new OA\Schema(
+                    type: 'object',
+                    additionalProperties: new OA\AdditionalProperties(type: 'string')
+                ),
+                example: ['color' => 'red', 'size' => 'M,L']
+            ),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Lấy danh sách sản phẩm thành công'),
@@ -48,6 +68,8 @@ class ProductController extends Controller
         $maxPrice = $request->query('max_price');
         $inStock = $request->boolean('in_stock', false);
         $attrs = $request->query('attr', []); // e.g. attr[color]=blue&attr[size]=M
+        $attrs = is_array($attrs) ? $attrs : [];
+        $attributeValueIds = $this->parseAttributeValueIds($request->query('attribute_value_ids', []));
         $promotionId = $request->query('promotionId');
 
         $query = Product::with(['variants.attributeValues', 'categories']);
@@ -86,8 +108,8 @@ class ProductController extends Controller
         }
 
         // Filter by variant price, stock and attribute values
-        if ($minPrice || $maxPrice || $inStock || ! empty($attrs)) {
-            $query->whereHas('variants', function ($v) use ($minPrice, $maxPrice, $inStock, $attrs) {
+        if ($minPrice || $maxPrice || $inStock || ! empty($attrs) || ! empty($attributeValueIds)) {
+            $query->whereHas('variants', function ($v) use ($minPrice, $maxPrice, $inStock, $attrs, $attributeValueIds) {
                 if ($minPrice !== null && $minPrice !== '') {
                     $v->where('price', '>=', (float) $minPrice);
                 }
@@ -96,6 +118,12 @@ class ProductController extends Controller
                 }
                 if ($inStock) {
                     $v->where('stock', '>', 0);
+                }
+
+                foreach ($attributeValueIds as $attributeValueId) {
+                    $v->whereHas('attributeValues', function ($attributeValueQuery) use ($attributeValueId) {
+                        $attributeValueQuery->whereKey($attributeValueId);
+                    });
                 }
 
                 // attribute filters: attr[name]=value or attr[name]=v1,v2
@@ -176,6 +204,24 @@ class ProductController extends Controller
 
         return response()->json($payload, 200);
 
+    }
+
+    private function parseAttributeValueIds(array|string|null $rawIds): array
+    {
+        $rawIds = is_array($rawIds) ? $rawIds : [$rawIds];
+        $ids = [];
+
+        foreach ($rawIds as $rawId) {
+            foreach (explode(',', (string) $rawId) as $id) {
+                $id = trim($id);
+
+                if (ctype_digit($id) && (int) $id > 0) {
+                    $ids[] = (int) $id;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**
@@ -620,7 +666,7 @@ class ProductController extends Controller
             if (! empty($attributeValueIds)) {
                 $pv = new ProductVariant;
                 $pv->product_id = $product->id;
-                $pv->sku = substr(preg_replace('/[^A-Za-z0-9]+/', '-', strtolower($product->name ?? 'variant')), 0, 40) . '-' . uniqid();
+                $pv->sku = substr(preg_replace('/[^A-Za-z0-9]+/', '-', strtolower($product->name ?? 'variant')), 0, 40).'-'.uniqid();
                 if (ProductVariant::where('sku', $pv->sku)->exists()) {
                     $pv->sku .= '-'.uniqid();
                 }
@@ -876,7 +922,7 @@ class ProductController extends Controller
             if (! empty($attributeValueIds)) {
                 $pv = new ProductVariant;
                 $pv->product_id = $product->id;
-                $pv->sku = substr(preg_replace('/[^A-Za-z0-9]+/', '-', strtolower($product->name ?? 'variant')), 0, 40) . '-' . uniqid();
+                $pv->sku = substr(preg_replace('/[^A-Za-z0-9]+/', '-', strtolower($product->name ?? 'variant')), 0, 40).'-'.uniqid();
                 if (ProductVariant::where('sku', $pv->sku)->exists()) {
                     $pv->sku .= '-'.uniqid();
                 }
