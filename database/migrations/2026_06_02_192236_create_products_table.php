@@ -19,6 +19,7 @@ return new class extends Migration
             $table->decimal('discount_price', 10, 2)->nullable();
             $table->string('image')->nullable()->default('https://down-vn.img.susercontent.com/file/1234b2a2d4ccbcdc4357c818cf58a1f7');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('category_product', function (Blueprint $table) {

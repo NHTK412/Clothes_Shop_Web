@@ -23,6 +23,7 @@ class PromotionControllerTest extends TestCase
             $table->decimal('discount_price', 10, 2)->nullable();
             $table->string('image')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('promotions', function (Blueprint $table) {

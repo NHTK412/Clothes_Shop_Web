@@ -48,6 +48,12 @@ class OrderService
                     ]);
                 }
 
+                if (! $variant->product) {
+                    throw ValidationException::withMessages([
+                        'cart' => "Product for variant {$variant->id} is no longer available.",
+                    ]);
+                }
+
                 if ($variant->stock < $item->quantity) {
                     throw ValidationException::withMessages([
                         'cart' => "Not enough stock for product variant {$variant->id}.",
@@ -87,7 +93,7 @@ class OrderService
                 ]);
             }
 
-            $orderStatus = $paymentMethod === 'COD' ? 'CONFIRMED' : 'PENDING_PAYMENT';
+            $orderStatus = $paymentMethod === 'COD' ? 'processing' : 'pending';
             $shipPrice = $this->calculateShippingFee($address, $shippingItems);
             $discountShipPrice = 0;
             $voucher = null;
@@ -215,7 +221,10 @@ class OrderService
                 ]);
             }
 
-            return $order->load(['orderDetails.productVariant.product', 'payment']);
+            return $order->load([
+                'orderDetails.productVariant.product' => fn ($query) => $query->withTrashed(),
+                'payment',
+            ]);
         });
     }
 
@@ -310,7 +319,10 @@ class OrderService
 
     public function getOrdersByUser(User $user, int $perPage = 10, int $page = 1, ?string $status = null)
     {
-        $query = $user->orders()->with(['orderDetails.productVariant.product', 'payment']);
+        $query = $user->orders()->with([
+            'orderDetails.productVariant.product' => fn ($query) => $query->withTrashed(),
+            'payment',
+        ]);
 
         if ($status) {
             $query->where('status', $status);
@@ -322,7 +334,11 @@ class OrderService
     public function getOrderById(User $user, int $orderId)
     {
         return $user->orders()
-            ->with(['orderDetails.productVariant.product', 'payment', 'orderDetails.review'])
+            ->with([
+                'orderDetails.productVariant.product' => fn ($query) => $query->withTrashed(),
+                'payment',
+                'orderDetails.review',
+            ])
             ->findOrFail($orderId);
     }
 
@@ -331,7 +347,7 @@ class OrderService
         return DB::transaction(function () use ($user, $orderId) {
             $order = $user->orders()->with(['orderDetails.productVariant', 'payment'])->findOrFail($orderId);
 
-            if (! in_array($order->status, ['PENDING_PAYMENT', 'CONFIRMED'])) {
+            if (! in_array($order->status, ['pending', 'processing'])) {
                 throw ValidationException::withMessages([
                     'order' => 'Order cannot be canceled at this stage.',
                 ]);
@@ -351,9 +367,9 @@ class OrderService
                 }
             }
 
-            $order->status = 'CANCELLED';
+            $order->status = 'cancelled';
 
-            if ($currentStatus == 'CONFIRMED' && $order->payment && $order->payment->status == 'PAID') {
+            if ($currentStatus === 'processing' && $order->payment && $order->payment->status === 'PAID') {
                 $order->payment->status = 'REFUNDED';
                 $order->payment->save();
 
@@ -426,7 +442,7 @@ class OrderService
         return DB::transaction(function () use ($user, $orderId, $orderDetailId, $rating, $comment, $imagePaths) {
             $order = $user->orders()->with('orderDetails')->findOrFail($orderId);
 
-            if ($order->status !== 'COMPLETED') {
+            if ($order->status !== 'completed') {
                 throw ValidationException::withMessages([
                     'order' => 'You can only review delivered orders.',
                 ]);
@@ -464,7 +480,7 @@ class OrderService
         $cancelledCount = 0;
 
         Order::query()
-            ->where('status', 'PENDING_PAYMENT')
+            ->where('status', 'pending')
             ->where('created_at', '<=', $thresholdTime)
             ->select('id')
             ->chunkById(100, function ($orders) use ($thresholdTime, &$cancelledCount) {
@@ -472,7 +488,7 @@ class OrderService
                     $cancelled = DB::transaction(function () use ($candidate, $thresholdTime) {
                         $order = Order::query()
                             ->whereKey($candidate->id)
-                            ->where('status', 'PENDING_PAYMENT')
+                            ->where('status', 'pending')
                             ->where('created_at', '<=', $thresholdTime)
                             ->lockForUpdate()
                             ->first();
@@ -500,7 +516,7 @@ class OrderService
                         }
 
                         $order->update([
-                            'status' => 'CANCELLED',
+                            'status' => 'cancelled',
                         ]);
 
                         return true;

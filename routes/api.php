@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AddressController;
 use App\Http\Controllers\Api\AttributeTypeController;
+use App\Http\Controllers\Api\AttributeValueController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
@@ -50,8 +51,12 @@ Route::controller(CategoryController::class)->prefix('categories')->name('catego
 
 Route::controller(AttributeTypeController::class)->prefix('attributes')->name('attributes.')->group(function () {
     Route::get('/', 'index')->name('index');
-    Route::get('/{idOrName}/values', 'values')->name('values');
     Route::get('/{id}', 'show')->name('show');
+});
+
+Route::controller(AttributeValueController::class)->prefix('attributes/{attributeType}/values')->name('attributes.values.')->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::get('/{attributeValue}', 'show')->name('show');
 });
 
 Route::controller(GhnController::class)->prefix('ghn')->name('ghn.')->group(function () {
@@ -137,6 +142,12 @@ Route::middleware(['auth:api', 'admin'])->group(function () {
         Route::post('/', 'store')->name('store');
         Route::put('/{id}', 'update')->name('update');
         Route::delete('/{id}', 'destroy')->name('destroy');
+    });
+
+    Route::controller(AttributeValueController::class)->prefix('attributes/{attributeType}/values')->name('attributes.values.')->group(function () {
+        Route::post('/', 'store')->name('store');
+        Route::put('/{attributeValue}', 'update')->name('update');
+        Route::delete('/{attributeValue}', 'destroy')->name('destroy');
     });
 
     Route::controller(CustomerController::class)->prefix('customers')->name('customers.')->group(function () {

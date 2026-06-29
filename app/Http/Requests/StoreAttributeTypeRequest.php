@@ -15,8 +15,7 @@ class StoreAttributeTypeRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255|unique:attribute_types,name',
-            'values' => 'sometimes|array',
-            'values.*' => 'required|string|max:255',
+            'display_name' => 'nullable|string|max:255',
         ];
     }
 }

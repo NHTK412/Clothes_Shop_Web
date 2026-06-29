@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use OpenApi\Attributes as OA;
 
@@ -360,7 +361,8 @@ class CategoryController extends Controller
     #[OA\Delete(
         path: '/api/categories/{id}',
         operationId: 'deleteCategory',
-        summary: 'Xóa danh mục',
+        summary: 'Xóa mềm danh mục',
+        description: 'Đánh dấu danh mục đã xóa và đưa các danh mục con trực tiếp của nó về cấp gốc.',
         security: [['bearerAuth' => []]],
         tags: ['Danh mục'],
         parameters: [
@@ -388,7 +390,11 @@ class CategoryController extends Controller
     public function destroy(int $id): JsonResponse
     {
         $cat = Category::findOrFail($id);
-        $cat->delete();
+
+        DB::transaction(function () use ($cat) {
+            $cat->children()->update(['parent_id' => null]);
+            $cat->delete();
+        });
 
         return response()->json([
             'status' => 200,

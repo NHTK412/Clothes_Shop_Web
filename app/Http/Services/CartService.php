@@ -22,28 +22,30 @@ class CartService
             return [];
         }
 
-        return $cart->items->map(function (CartItem $item) {
-            $variant = $item->productVariant;
-            $product = $variant?->product;
+        return $cart->items
+            ->filter(fn (CartItem $item) => $item->productVariant?->product !== null)
+            ->map(function (CartItem $item) {
+                $variant = $item->productVariant;
+                $product = $variant?->product;
 
-            return [
-                'cart_item_id' => $item->id,
-                'product_variant_id' => $variant?->id,
-                'product_name' => $product?->name,
-                'attributes' => $variant?->attributeValues->map(function ($attributeValue) {
-                    return [
-                        'type' => $attributeValue->attributeType?->name,
-                        'display_type' => $attributeValue->attributeType?->display_name,
-                        'value' => $attributeValue->value,
-                        'display_value' => $attributeValue->display_value,
-                    ];
-                })->values()->toArray() ?? [],
-                'image' => $variant?->image ?? $product?->image,
-                'original_price' => $variant?->price,
-                'discount_price' => $variant?->discount_price,
-                'quantity' => $item->quantity,
-            ];
-        })->values()->toArray();
+                return [
+                    'cart_item_id' => $item->id,
+                    'product_variant_id' => $variant?->id,
+                    'product_name' => $product?->name,
+                    'attributes' => $variant?->attributeValues->map(function ($attributeValue) {
+                        return [
+                            'type' => $attributeValue->attributeType?->name,
+                            'display_type' => $attributeValue->attributeType?->display_name,
+                            'value' => $attributeValue->value,
+                            'display_value' => $attributeValue->display_value,
+                        ];
+                    })->values()->toArray() ?? [],
+                    'image' => $variant?->image ?? $product?->image,
+                    'original_price' => $variant?->price,
+                    'discount_price' => $variant?->discount_price,
+                    'quantity' => $item->quantity,
+                ];
+            })->values()->toArray();
     }
 
     public function addItem(User $user, int $productVariantId, int $quantity = 1): array
@@ -58,6 +60,7 @@ class CartService
             }
 
             $variant = ProductVariant::where('id', $productVariantId)
+                ->whereHas('product')
                 ->lockForUpdate()
                 ->firstOrFail();
 
@@ -108,6 +111,7 @@ class CartService
             }
 
             $variant = ProductVariant::where('id', $item->product_variant_id)
+                ->whereHas('product')
                 ->lockForUpdate()
                 ->firstOrFail();
 
@@ -132,7 +136,9 @@ class CartService
             return 0;
         }
 
-        return $cart->items()->sum('quantity');
+        return $cart->items()
+            ->whereHas('productVariant.product')
+            ->sum('quantity');
     }
 
     public function getShippingItems(User $user): array
@@ -146,7 +152,7 @@ class CartService
         }
 
         return $cart->items
-            ->filter(fn (CartItem $item) => $item->quantity > 0)
+            ->filter(fn (CartItem $item) => $item->quantity > 0 && $item->productVariant?->product !== null)
             ->map(function (CartItem $item) {
                 $variant = $item->productVariant;
                 $product = $variant?->product;

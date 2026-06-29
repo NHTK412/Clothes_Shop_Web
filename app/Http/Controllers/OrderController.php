@@ -65,7 +65,7 @@ class OrderController extends Controller
                                 new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 398000),
                                 new OA\Property(property: 'discount_price', type: 'number', format: 'float', example: 100000),
                                 new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 298000),
-                                new OA\Property(property: 'status', type: 'string', example: 'PENDING_PAYMENT'),
+                                new OA\Property(property: 'status', type: 'string', example: 'pending'),
                                 new OA\Property(property: 'ghn_order_code', type: 'string', nullable: true, example: 'LJXX123456'),
                                 new OA\Property(property: 'ward_code', type: 'string', example: '1003544'),
                                 new OA\Property(property: 'ward_name', type: 'string', example: 'Phường An Khánh'),
@@ -214,7 +214,7 @@ class OrderController extends Controller
                                     items: new OA\Items(
                                         properties: [
                                             new OA\Property(property: 'id', type: 'integer', example: 1),
-                                            new OA\Property(property: 'status', type: 'string', example: 'PENDING_PAYMENT'),
+                                            new OA\Property(property: 'status', type: 'string', example: 'pending'),
                                             new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 298000),
                                             new OA\Property(property: 'created_at', type: 'string', format: 'date-time', example: '2026-06-22T12:00:00.000000Z'),
                                             new OA\Property(property: 'full_name', type: 'string', example: 'Nguyễn Văn A'),
@@ -284,7 +284,7 @@ class OrderController extends Controller
         $validated = $request->validate([
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
-            'status' => 'nullable|string|in:PENDING_PAYMENT,CONFIRMED,SHIPPING,COMPLETED,CANCELLED,RETURNED',
+            'status' => 'nullable|string|in:pending,processing,completed,cancelled,returned',
         ]);
 
         $orders = $this->orderService->getOrdersByUser(
@@ -334,7 +334,7 @@ class OrderController extends Controller
         tags: ['Đơn hàng'],
         parameters: [
             new OA\Parameter(name: 'search', in: 'query', description: 'Tìm theo tên, email hoặc số điện thoại khách hàng.', required: false, schema: new OA\Schema(type: 'string')),
-            new OA\Parameter(name: 'status', in: 'query', description: 'Lọc theo trạng thái đơn hàng.', required: false, schema: new OA\Schema(type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'])),
+            new OA\Parameter(name: 'status', in: 'query', description: 'Lọc theo trạng thái đơn hàng.', required: false, schema: new OA\Schema(type: 'string', enum: ['pending', 'processing', 'completed', 'cancelled', 'returned'])),
             new OA\Parameter(name: 'page', in: 'query', description: 'Trang hiện tại.', required: false, schema: new OA\Schema(type: 'integer', minimum: 1), example: 1),
             new OA\Parameter(name: 'per_page', in: 'query', description: 'Số đơn hàng mỗi trang.', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100), example: 15),
         ],
@@ -350,12 +350,16 @@ class OrderController extends Controller
 
         $validated = $request->validate([
             'search' => 'nullable|string|max:255',
-            'status' => 'nullable|string|in:PENDING_PAYMENT,CONFIRMED,SHIPPING,COMPLETED,CANCELLED,RETURNED',
+            'status' => 'nullable|string|in:pending,processing,completed,cancelled,returned',
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
         ]);
 
-        $query = Order::query()->with(['user', 'payment', 'orderDetails.productVariant.product']);
+        $query = Order::query()->with([
+            'user',
+            'payment',
+            'orderDetails.productVariant.product' => fn ($query) => $query->withTrashed(),
+        ]);
 
         if (! empty($validated['search'])) {
             $search = $validated['search'];
@@ -412,7 +416,11 @@ class OrderController extends Controller
     {
         $this->ensureAdmin($request->user());
 
-        $order->load(['user', 'payment', 'orderDetails.productVariant.product']);
+        $order->load([
+            'user',
+            'payment',
+            'orderDetails.productVariant.product' => fn ($query) => $query->withTrashed(),
+        ]);
 
         return response()->json([
             'status' => 200,
@@ -470,7 +478,7 @@ class OrderController extends Controller
             'to_date' => 'nullable|date_format:Y-m-d',
         ]);
 
-        $query = Order::query()->where('status', 'COMPLETED');
+        $query = Order::query()->where('status', 'completed');
 
         $fromDate = $validated['from_date'] ?? null;
         $toDate = $validated['to_date'] ?? null;
@@ -518,7 +526,7 @@ class OrderController extends Controller
                 schema: new OA\Schema(type: 'integer'),
                 example: 3
             ),
-            new OA\Parameter(name: 'status', in: 'query', description: 'Lọc theo trạng thái đơn hàng', required: false, schema: new OA\Schema(type: 'string', enum: ['PENDING_PAYMENT', 'CONFIRMED', 'SHIPPING', 'COMPLETED', 'CANCELLED', 'RETURNED'])),
+            new OA\Parameter(name: 'status', in: 'query', description: 'Lọc theo trạng thái đơn hàng', required: false, schema: new OA\Schema(type: 'string', enum: ['pending', 'processing', 'completed', 'cancelled', 'returned'])),
             new OA\Parameter(name: 'page', in: 'query', description: 'Số trang (mặc định 1)', required: false, schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'per_page', in: 'query', description: 'Số bản ghi trên trang (mặc định 15, tối đa 100)', required: false, schema: new OA\Schema(type: 'integer')),
         ],
@@ -570,7 +578,12 @@ class OrderController extends Controller
             'per_page' => 'nullable|integer|min:1|max:100',
         ]);
 
-        $query = Order::query()->where('user_id', $customer->id)->with(['payment', 'orderDetails.productVariant.product']);
+        $query = Order::query()
+            ->where('user_id', $customer->id)
+            ->with([
+                'payment',
+                'orderDetails.productVariant.product' => fn ($query) => $query->withTrashed(),
+            ]);
 
         if (! empty($validated['status'])) {
             $query->where('status', $this->normalizeOrderStatus($validated['status']));
@@ -629,7 +642,7 @@ class OrderController extends Controller
                                 new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 398000),
                                 new OA\Property(property: 'discount_price', type: 'number', format: 'float', example: 100000),
                                 new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 298000),
-                                new OA\Property(property: 'status', type: 'string', example: 'PENDING_PAYMENT'),
+                                new OA\Property(property: 'status', type: 'string', example: 'pending'),
                                 new OA\Property(property: 'ghn_order_code', type: 'string', nullable: true, example: 'LJXX123456'),
                                 new OA\Property(property: 'ward_code', type: 'string', example: '1003544'),
                                 new OA\Property(property: 'ward_name', type: 'string', example: 'Phường An Khánh'),
@@ -729,7 +742,7 @@ class OrderController extends Controller
         path: '/api/order/{order}/cancel',
         operationId: 'cancelOrder',
         summary: 'Hủy đơn hàng',
-        description: 'Hủy đơn hàng của người dùng đang đăng nhập. Chỉ các đơn ở trạng thái PENDING_PAYMENT hoặc CONFIRMED mới có thể hủy.',
+        description: 'Hủy đơn hàng của người dùng đang đăng nhập. Chỉ các đơn ở trạng thái pending hoặc processing mới có thể hủy.',
         security: [['bearerAuth' => []]],
         tags: ['Đơn hàng'],
         parameters: [
@@ -761,7 +774,7 @@ class OrderController extends Controller
                                 new OA\Property(property: 'ship_price', type: 'number', format: 'float', example: 49500),
                                 new OA\Property(property: 'discount_ship_price', type: 'number', format: 'float', example: 0),
                                 new OA\Property(property: 'final_price', type: 'number', format: 'float', example: 447500),
-                                new OA\Property(property: 'status', type: 'string', example: 'CANCELLED'),
+                                new OA\Property(property: 'status', type: 'string', example: 'cancelled'),
                                 new OA\Property(property: 'ghn_order_code', type: 'string', nullable: true, example: 'LX8E8H'),
                                 new OA\Property(property: 'ward_code', type: 'string', example: '1003544'),
                                 new OA\Property(property: 'ward_name', type: 'string', example: 'Phường An Khánh'),
@@ -862,7 +875,7 @@ class OrderController extends Controller
         path: '/api/ghn/webhook/order-status',
         operationId: 'updateOrderStatusFromGhnWebhook',
         summary: 'Webhook cập nhật trạng thái đơn hàng từ GHN',
-        description: 'Endpoint để GHN thông báo đơn hàng có thay đổi. GHN gửi kèm token do hệ thống cung cấp và mã vận đơn. Sau khi xác thực token, hệ thống gọi API chi tiết đơn hàng GHN để lấy status hiện tại rồi cập nhật trạng thái nội bộ: picked -> SHIPPING, delivered -> COMPLETED, return -> RETURNED.',
+        description: 'Endpoint để GHN thông báo đơn hàng có thay đổi. GHN gửi kèm token do hệ thống cung cấp và mã vận đơn. Sau khi xác thực token, hệ thống gọi API chi tiết đơn hàng GHN để lấy status hiện tại rồi cập nhật trạng thái nội bộ: picked -> processing, delivered -> completed, return -> returned.',
         tags: ['GHN'],
         parameters: [
             new OA\Parameter(
@@ -898,15 +911,15 @@ class OrderController extends Controller
                             property: 'data',
                             properties: [
                                 new OA\Property(property: 'ghn_status', type: 'string', example: 'picked'),
-                                new OA\Property(property: 'old_status', type: 'string', example: 'CONFIRMED'),
-                                new OA\Property(property: 'new_status', type: 'string', example: 'SHIPPING'),
+                                new OA\Property(property: 'old_status', type: 'string', example: 'processing'),
+                                new OA\Property(property: 'new_status', type: 'string', example: 'completed'),
                                 new OA\Property(property: 'status_changed', type: 'boolean', example: true),
                                 new OA\Property(
                                     property: 'order',
                                     properties: [
                                         new OA\Property(property: 'id', type: 'integer', example: 1),
                                         new OA\Property(property: 'user_id', type: 'integer', example: 1),
-                                        new OA\Property(property: 'status', type: 'string', example: 'SHIPPING'),
+                                        new OA\Property(property: 'status', type: 'string', example: 'processing'),
                                         new OA\Property(property: 'ghn_order_code', type: 'string', example: '5E3NK3RS'),
                                         new OA\Property(property: 'total_price', type: 'number', format: 'float', example: 300000),
                                         new OA\Property(property: 'discount_price', type: 'number', format: 'float', example: 0),
@@ -1148,13 +1161,13 @@ class OrderController extends Controller
 
         $statusMap = [
             // Nếu là đã tới lấy hàng thì cập nhật thành đang giao
-            'picked' => 'SHIPPING',
+            'picked' => 'processing',
 
             // Nếu là đã giao hàng thì cập nhật thành hoàn thành
-            'delivered' => 'COMPLETED',
+            'delivered' => 'completed',
 
             // Nếu là trả hàng thì cập nhật thành trả hàng
-            'return' => 'RETURNED',
+            'return' => 'returned',
         ];
 
         if (isset($statusMap[$ghnStatus]) && $order->status !== $statusMap[$ghnStatus]) {

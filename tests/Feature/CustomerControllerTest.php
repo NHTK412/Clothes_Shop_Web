@@ -25,7 +25,7 @@ class CustomerControllerTest extends TestCase
             'final_price' => 90000,
             'ship_price' => 15000,
             'discount_ship_price' => 0,
-            'status' => 'COMPLETED',
+            'status' => 'completed',
             'ward_code' => '100001',
             'ward_name' => 'Phường 1',
             'province_id' => 1,
@@ -42,7 +42,7 @@ class CustomerControllerTest extends TestCase
             'final_price' => 110000,
             'ship_price' => 15000,
             'discount_ship_price' => 0,
-            'status' => 'COMPLETED',
+            'status' => 'completed',
             'ward_code' => '100002',
             'ward_name' => 'Phường 2',
             'province_id' => 1,
@@ -90,7 +90,7 @@ class CustomerControllerTest extends TestCase
             'final_price' => 120000,
             'ship_price' => 20000,
             'discount_ship_price' => 0,
-            'status' => 'COMPLETED',
+            'status' => 'completed',
             'ward_code' => '100003',
             'ward_name' => 'Phường 3',
             'province_id' => 2,
@@ -108,7 +108,7 @@ class CustomerControllerTest extends TestCase
         $response = $this->actingAs($admin, 'api')->getJson("/api/customers/{$customer->id}");
 
         $response->assertOk()
-            ->assertJson([ 
+            ->assertJson([
                 'data' => [
                     'id' => $customer->id,
                     'total_orders' => 1,

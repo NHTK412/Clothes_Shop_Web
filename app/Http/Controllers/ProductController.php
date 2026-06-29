@@ -6,6 +6,7 @@ use App\Models\AttributeType;
 use App\Models\OrderDetail;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -249,7 +250,9 @@ class ProductController extends Controller
         $q = trim((string) $request->query('q', ''));
         $lowStock = $request->boolean('low_stock', false);
 
-        $query = ProductVariant::query()->with('product');
+        $query = ProductVariant::query()
+            ->whereHas('product')
+            ->with('product');
 
         if ($q !== '') {
             $query->where(function ($subQuery) use ($q) {
@@ -907,9 +910,38 @@ class ProductController extends Controller
     }
 
     /**
-     * Delete a product (admin only).
+     * Soft delete a product (admin only).
      */
-    public function destroy(Request $request, $id)
+    #[OA\Delete(
+        path: '/api/products/{id}',
+        operationId: 'deleteProduct',
+        summary: 'Xóa mềm sản phẩm',
+        description: 'Đánh dấu sản phẩm đã xóa. Các biến thể và dữ liệu đơn hàng liên quan vẫn được giữ lại.',
+        security: [['bearerAuth' => []]],
+        tags: ['Sản phẩm'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'), example: 1),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Xóa mềm sản phẩm thành công',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'status', type: 'integer', example: 200),
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', nullable: true, example: null),
+                        new OA\Property(property: 'data', type: 'object', nullable: true, example: null),
+                    ],
+                    type: 'object'
+                )
+            ),
+            new OA\Response(response: 401, description: 'Chưa xác thực'),
+            new OA\Response(response: 403, description: 'Chỉ quản trị viên được phép'),
+            new OA\Response(response: 404, description: 'Không tìm thấy sản phẩm'),
+        ]
+    )]
+    public function destroy(int $id): JsonResponse
     {
         $product = Product::findOrFail($id);
         $product->delete();

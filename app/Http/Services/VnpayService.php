@@ -149,7 +149,7 @@ class VnpayService
             ]);
 
             $order->update([
-                'status' => 'CONFIRMED',
+                'status' => 'processing',
             ]);
         } else {
             $payment->update([

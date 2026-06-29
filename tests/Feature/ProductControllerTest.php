@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -21,6 +22,7 @@ class ProductControllerTest extends TestCase
             $table->decimal('discount_price', 10, 2)->nullable();
             $table->string('image')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('product_variants', function (Blueprint $table) {
@@ -38,6 +40,7 @@ class ProductControllerTest extends TestCase
             $table->id();
             $table->string('name');
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('category_product', function (Blueprint $table) {
@@ -147,5 +150,42 @@ class ProductControllerTest extends TestCase
                 'price' => 100000,
             ])
             ->assertForbidden();
+    }
+
+    public function test_soft_deleted_product_is_hidden_but_its_variant_is_preserved(): void
+    {
+        $createResponse = $this->postJson('/api/products', [
+            'name' => 'Soft delete product',
+            'price' => 150000,
+            'variants' => [
+                [
+                    'sku' => 'SOFT-DELETE-M',
+                    'price' => 150000,
+                    'stock' => 5,
+                ],
+            ],
+        ])->assertCreated();
+
+        $productId = $createResponse->json('data.items.id');
+        $variantId = $createResponse->json('data.items.variants.0.id');
+
+        $this->deleteJson("/api/products/{$productId}")
+            ->assertOk();
+
+        $this->assertSoftDeleted('products', ['id' => $productId]);
+        $this->assertDatabaseHas('product_variants', ['id' => $variantId]);
+        $this->assertNull(ProductVariant::with('product')->findOrFail($variantId)->product);
+
+        $variantWithDeletedProduct = ProductVariant::with([
+            'product' => fn ($query) => $query->withTrashed(),
+        ])->findOrFail($variantId);
+        $this->assertSame($productId, $variantWithDeletedProduct->product->id);
+
+        $this->getJson("/api/products/{$productId}")
+            ->assertNotFound();
+
+        $this->getJson('/api/products?per_page=0')
+            ->assertOk()
+            ->assertJsonCount(0, 'data.items');
     }
 }

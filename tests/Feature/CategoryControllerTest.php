@@ -21,6 +21,7 @@ class CategoryControllerTest extends TestCase
             $table->string('image')->default(self::DEFAULT_IMAGE);
             $table->foreignId('parent_id')->nullable()->constrained('categories')->nullOnDelete();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         $admin = new User;
@@ -71,7 +72,8 @@ class CategoryControllerTest extends TestCase
         $this->deleteJson("/api/categories/{$childId}")
             ->assertOk();
 
-        $this->assertDatabaseMissing('categories', ['id' => $childId]);
+        $this->assertSoftDeleted('categories', ['id' => $childId]);
+        $this->getJson("/api/categories/{$childId}")->assertNotFound();
     }
 
     public function test_update_rejects_a_parent_that_would_create_a_category_cycle(): void
@@ -89,6 +91,15 @@ class CategoryControllerTest extends TestCase
         $this->putJson("/api/categories/{$parentId}", [
             'parent_id' => $childId,
         ])->assertUnprocessable();
+
+        $this->deleteJson("/api/categories/{$parentId}")
+            ->assertOk();
+
+        $this->assertSoftDeleted('categories', ['id' => $parentId]);
+        $this->assertDatabaseHas('categories', [
+            'id' => $childId,
+            'parent_id' => null,
+        ]);
     }
 
     public function test_customer_cannot_create_a_category(): void
