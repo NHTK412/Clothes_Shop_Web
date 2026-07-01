@@ -46,6 +46,13 @@ return [
         'default_length' => env('GHN_DEFAULT_LENGTH', 25),
         'default_width' => env('GHN_DEFAULT_WIDTH', 20),
         'default_height' => env('GHN_DEFAULT_HEIGHT', 3),
+        'return_shop' => [
+            'name' => env('GHN_RETURN_SHOP_NAME', 'Clothes Shop'),
+            'phone' => env('GHN_RETURN_SHOP_PHONE', '0366408263'),
+            'address' => env('GHN_RETURN_SHOP_ADDRESS', 'Đường NA12'),
+            'ward_code' => env('GHN_RETURN_SHOP_WARD_CODE', '1003601'),
+            'province_name' => env('GHN_RETURN_SHOP_PROVINCE_NAME', 'Hồ Chí Minh'),
+        ],
     ],
 
     'vnpay' => [

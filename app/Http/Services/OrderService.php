@@ -15,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class OrderService
 {
+    public function __construct(private readonly ReturnRequestService $returnRequestService) {}
+
     public function createOrder(
         User $user,
         int $addressId,
@@ -325,6 +327,7 @@ class OrderService
         $query = $user->orders()->with([
             'orderDetails.productVariant.product' => fn ($query) => $query->withTrashed(),
             'payment',
+            'returnRequest',
         ]);
 
         if ($status) {
@@ -341,6 +344,7 @@ class OrderService
                 'orderDetails.productVariant.product' => fn ($query) => $query->withTrashed(),
                 'payment',
                 'orderDetails.review',
+                'returnRequest',
             ])
             ->findOrFail($orderId);
     }
@@ -389,6 +393,7 @@ class OrderService
                         'status' => 'pending',
                         'reason' => 'Hoàn tiền do hủy đơn hàng',
                         'user_id' => $user->id,
+                        'note' => 'Phương án hoàn tiền được trao đổi riêng với khách hàng.',
                     ]
                 );
             }
@@ -547,6 +552,8 @@ class OrderService
 
     public function updateStatusFromGhn(string $orderCode, ?string $ghnStatus): array
     {
+        $ghnStatus = $ghnStatus !== null ? strtolower(trim($ghnStatus)) : null;
+
         return DB::transaction(function () use ($orderCode, $ghnStatus) {
             $order = Order::query()
                 ->where('ghn_order_code', $orderCode)
@@ -570,12 +577,16 @@ class OrderService
                 $order->payment->update(['status' => 'PAID']);
             }
 
+            if ($targetStatus === OrderStatus::RETURNED) {
+                $this->returnRequestService->createRefundForGhnReturn($order, $ghnStatus);
+            }
+
             return [
                 'ghn_status' => $ghnStatus,
                 'old_status' => $oldStatus,
                 'new_status' => $order->status,
                 'status_changed' => $oldStatus !== $order->status,
-                'order' => $order->fresh(['payment'])->toArray(),
+                'order' => $order->fresh(['payment', 'refundRequest'])->toArray(),
             ];
         });
     }

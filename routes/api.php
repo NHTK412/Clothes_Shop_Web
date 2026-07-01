@@ -11,6 +11,8 @@ use App\Http\Controllers\GhnController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PromotionController;
+use App\Http\Controllers\RefundController;
+use App\Http\Controllers\ReturnRequestController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\VnpayController;
@@ -118,6 +120,16 @@ Route::middleware('auth:api')->group(function () {
 
     Route::get('/voucher/{voucher}', [VoucherController::class, 'show'])->name('voucher.show');
     Route::post('/vnpay/payment-url', [VnpayController::class, 'createPaymentUrl'])->name('vnpay.payment-url');
+    Route::post('/upload', [UploadController::class, 'uploadProductImage'])->name('upload.product-image');
+
+    Route::controller(ReturnRequestController::class)->prefix('return-requests')->name('return-requests.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{returnRequest}', 'show')->name('show');
+        Route::patch('/{returnRequest}/cancel', 'cancel')->name('cancel');
+    });
+
+    Route::get('/refunds', [RefundController::class, 'index'])->name('refunds.index');
 });
 
 /*
@@ -185,7 +197,19 @@ Route::middleware(['auth:api', 'admin'])->group(function () {
         Route::delete('/{promotion}', 'destroy')->name('destroy');
     });
 
-    Route::post('/upload', [UploadController::class, 'uploadProductImage'])->name('upload.product-image');
+    Route::controller(ReturnRequestController::class)->prefix('admin/return-requests')->name('admin.return-requests.')->group(function () {
+        Route::get('/', 'adminIndex')->name('index');
+        Route::get('/{returnRequest}', 'adminShow')->name('show');
+        Route::patch('/{returnRequest}/status', 'updateStatus')->name('status');
+    });
+
+    Route::controller(RefundController::class)->prefix('admin/refunds')->name('admin.refunds.')->group(function () {
+        Route::get('/', 'adminIndex')->name('index');
+        Route::patch('/{refund}/status', 'updateStatus')->name('status');
+        Route::patch('/{refund}', 'update')->name('update');
+    });
+
+    // Route::post('/upload', [UploadController::class, 'uploadProductImage'])->name('upload.product-image');
 
     Route::post('ghn/print-label', [GhnController::class, 'printLabel'])->name('ghn.print-label');
 });

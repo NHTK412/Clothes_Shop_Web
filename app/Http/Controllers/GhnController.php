@@ -440,8 +440,7 @@ class GhnController extends Controller
             'order_code.*' => 'required|string',
         ]);
 
-        Order::where('user_id', $request->user()->id)
-            ->where('ghn_order_code', $validated['order_code'])
+        Order::where('ghn_order_code', $validated['order_code'])
             ->firstOrFail();
 
         $response = $this->post('/shiip/public-api/v2/a5/gen-token', [

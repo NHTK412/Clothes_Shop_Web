@@ -61,6 +61,11 @@ class Order extends Model
         return $this->hasOne(RefundRequest::class);
     }
 
+    public function returnRequest()
+    {
+        return $this->hasOne(ReturnRequest::class);
+    }
+
     public function voucher()
     {
         return $this->belongsTo(Voucher::class);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\OrderStatus;
 use App\Http\Services\OrderService;
 use App\Models\Order;
+use App\Models\ReturnRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -318,6 +319,9 @@ class OrderController extends Controller
                         'final_price' => $order->final_price,
                         'created_at' => $order->created_at,
                         'full_name' => $order->full_name,
+                        'can_request_return' => $order->status === OrderStatus::COMPLETED->value
+                            && $order->returnRequest === null,
+                        'return_request' => $this->formatCustomerReturnRequest($order->returnRequest),
                         'order_details' => $order->orderDetails->map(function ($detail) {
                             return [
                                 'product_variant_id' => $detail->product_variant_id,
@@ -888,13 +892,33 @@ class OrderController extends Controller
     {
 
         $order = $this->orderService->getOrderById($request->user(), $order);
+        $data = $order->toArray();
+        $data['can_request_return'] = $order->status === OrderStatus::COMPLETED->value
+            && $order->returnRequest === null;
+        $data['return_request'] = $this->formatCustomerReturnRequest($order->returnRequest);
 
         return response()->json([
             'status' => 200,
             'success' => true,
             'message' => null,
-            'data' => $order->toArray(),
+            'data' => $data,
         ]);
+    }
+
+    private function formatCustomerReturnRequest(?ReturnRequest $returnRequest): ?array
+    {
+        if (! $returnRequest) {
+            return null;
+        }
+
+        return [
+            'id' => $returnRequest->id,
+            'status' => $returnRequest->status->value,
+            'reason' => $returnRequest->reason,
+            'note' => $returnRequest->admin_note,
+            'ghn_order_code' => $returnRequest->ghn_order_code,
+            'created_at' => $returnRequest->created_at?->toISOString(),
+        ];
     }
 
     #[OA\Patch(
@@ -957,7 +981,8 @@ class OrderController extends Controller
                                         new OA\Property(property: 'id', type: 'integer', example: 4),
                                         new OA\Property(property: 'reason', type: 'string', example: 'Hoàn tiền do hủy đơn hàng'),
                                         new OA\Property(property: 'status', type: 'string', enum: ['pending', 'approved', 'rejected'], example: 'pending'),
-                                        new OA\Property(property: 'amount', type: 'number', format: 'float', example: 447500),
+                                        new OA\Property(property: 'note', type: 'string', nullable: true, example: 'Phương án hoàn tiền được trao đổi riêng với khách hàng'),
+                                        new OA\Property(property: 'transfer_image', type: 'string', nullable: true, example: null),
                                     ],
                                     type: 'object',
                                     nullable: true

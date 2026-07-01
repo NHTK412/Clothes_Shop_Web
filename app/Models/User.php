@@ -31,6 +31,16 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(Address::class);
     }
 
+    public function returnRequests()
+    {
+        return $this->hasMany(ReturnRequest::class);
+    }
+
+    public function refundRequests()
+    {
+        return $this->hasMany(RefundRequest::class);
+    }
+
     protected $fillable = [
         'name',
         'email',
