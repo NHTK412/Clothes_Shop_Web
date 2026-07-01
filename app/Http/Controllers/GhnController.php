@@ -432,4 +432,33 @@ class GhnController extends Controller
             'data' => null,
         ], $status);
     }
+
+    public function printLabel(Request $request)
+    {
+        $validated = $request->validate([
+            'order_code' => 'required|array',
+            'order_code.*' => 'required|string',
+        ]);
+
+        Order::where('user_id', $request->user()->id)
+            ->where('ghn_order_code', $validated['order_code'])
+            ->firstOrFail();
+
+        $response = $this->post('/shiip/public-api/v2/a5/gen-token', [
+            'order_codes' => $validated['order_code'],
+        ]);
+
+        if (! $response instanceof Response) {
+            return $response;
+        }
+
+        return response()->json([
+            'status' => 200,
+            'success' => true,
+            'message' => null,
+            'data' => [
+                'token' => $response->json('data.token'),
+            ],
+        ], 200);
+    }
 }

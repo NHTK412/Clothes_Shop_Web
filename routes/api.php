@@ -186,4 +186,6 @@ Route::middleware(['auth:api', 'admin'])->group(function () {
     });
 
     Route::post('/upload', [UploadController::class, 'uploadProductImage'])->name('upload.product-image');
+
+    Route::post('ghn/print-label', [GhnController::class, 'printLabel'])->name('ghn.print-label');
 });
