@@ -4,6 +4,7 @@ use App\Http\Controllers\AddressController;
 use App\Http\Controllers\Api\AttributeTypeController;
 use App\Http\Controllers\Api\AttributeValueController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BannerController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
@@ -45,6 +46,11 @@ Route::prefix('auth')->group(function () {
 Route::controller(ProductController::class)->group(function () {
     Route::get('/products', 'index')->name('products.index');
     Route::get('/products/{id}', 'show')->name('products.show');
+});
+
+Route::controller(BannerController::class)->prefix('banners')->name('banners.')->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::get('/{banner}', 'show')->name('show');
 });
 
 Route::controller(ReviewController::class)->prefix('products/{product}/reviews')->name('products.reviews.')->group(function () {
@@ -144,6 +150,13 @@ Route::middleware('auth:api')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:api', 'admin'])->group(function () {
+    Route::controller(BannerController::class)->prefix('admin/banners')->name('admin.banners.')->group(function () {
+        Route::post('/', 'store')->name('store');
+        Route::put('/{banner}', 'update')->name('update');
+        Route::patch('/{banner}', 'update')->name('patch');
+        Route::delete('/{banner}', 'destroy')->name('destroy');
+    });
+
     Route::controller(ProductController::class)->group(function () {
         Route::post('/products', 'store')->name('products.store');
         Route::put('/products/{id}', 'update')->name('products.update');
