@@ -13,6 +13,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\ReturnRequestController;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\VnpayController;
@@ -44,6 +45,11 @@ Route::prefix('auth')->group(function () {
 Route::controller(ProductController::class)->group(function () {
     Route::get('/products', 'index')->name('products.index');
     Route::get('/products/{id}', 'show')->name('products.show');
+});
+
+Route::controller(ReviewController::class)->prefix('products/{product}/reviews')->name('products.reviews.')->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::get('/summary', 'summary')->name('summary');
 });
 
 Route::controller(CategoryController::class)->prefix('categories')->name('categories.')->group(function () {

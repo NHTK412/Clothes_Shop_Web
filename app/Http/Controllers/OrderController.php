@@ -1125,19 +1125,10 @@ class OrderController extends Controller
     public function review(Request $request, int $order, int $orderDetail)
     {
         $validated = $request->validate([
-            'order' => [
-                'required',
-                'integer',
-                Rule::exists('orders', 'id')->where('user_id', $request->user()->id),
-            ],
-            'orderDetail' => [
-                'required',
-                'integer',
-                Rule::exists('order_details', 'id')->where('order_id', $order),
-            ],
             'rating' => 'required|integer|min:1|max:5',
             'comment' => 'nullable|string|max:1000',
             'imagePaths' => 'nullable|array|max:5',
+            'imagePaths.*' => 'string|max:2048',
         ]);
 
         $review = $this->orderService->reviewOrderDetail($request->user(), $order, $orderDetail, $validated['rating'], $validated['comment'] ?? null, $validated['imagePaths'] ?? []);

@@ -465,6 +465,13 @@ class OrderService
             }
 
             $orderDetail = $order->orderDetails()->findOrFail($orderDetailId);
+            $productId = $orderDetail->productVariant()->value('product_id');
+
+            if (! $productId) {
+                throw ValidationException::withMessages([
+                    'review' => 'The reviewed product no longer exists.',
+                ]);
+            }
 
             if ($orderDetail->review) {
                 throw ValidationException::withMessages([
@@ -474,7 +481,7 @@ class OrderService
 
             $review = $orderDetail->review()->create([
                 'user_id' => $user->id,
-                'product_id' => $orderDetail->product_variant_id,
+                'product_id' => $productId,
                 'rating' => $rating,
                 'comment' => $comment,
                 'order_detail_id' => $orderDetail->id,
